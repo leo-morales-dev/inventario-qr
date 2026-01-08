@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <%- include('partials/head') %>
+    <style>
+        /* Estilo simple para el gafete al imprimir */
+        @media print {
+            body * { visibility: hidden; }
+            #badge-section, #badge-section * { visibility: visible; }
+            #badge-section { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+
+<body id="page-top">
+    <div id="wrapper">
+        <%- include('partials/sidebar', { page: 'employees' }) %>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+                    <a href="/employees" class="btn btn-light btn-icon-split btn-sm">
+                        <span class="icon text-gray-600"><i class="fas fa-arrow-left"></i></span>
+                        <span class="text">Volver</span>
+                    </a>
+                </nav>
+
+                <div class="container-fluid">
+
+                    <div class="row">
+                        <div class="col-lg-4">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Credencial de Empleado</h6></div>
+                                <div class="card-body text-center" id="badge-section">
+                                    <div style="border: 2px solid #4e73df; border-radius: 10px; padding: 20px; max-width: 300px; margin: 0 auto;">
+                                        <h5 class="text-uppercase font-weight-bold text-dark mb-1"><%= employee.name %></h5>
+                                        <p class="text-muted small">Personal Autorizado</p>
+                                        
+                                        <img src="<%= qrImage %>" class="img-fluid mb-3" style="width: 150px;">
+                                        
+                                        <div class="bg-primary text-white py-1 rounded">ID: <%= employee.id %></div>
+                                    </div>
+                                    <button onclick="window.print()" class="btn btn-primary mt-4 btn-block d-print-none">
+                                        <i class="fas fa-print mr-2"></i> Imprimir Gafete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3 bg-danger">
+                                    <h6 class="m-0 font-weight-bold text-white">⚠️ Herramientas en su poder (Activas)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group mb-4">
+                                        <% const activeLoans = employee.loans.filter(l => l.status === 'prestado'); %>
+                                        <% if (activeLoans.length > 0) { %>
+                                            <% activeLoans.forEach(loan => { %>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <i class="fas fa-tools text-danger mr-2"></i>
+                                                        <strong><%= loan.product ? loan.product.description : '???' %></strong>
+                                                        <br><small class="text-muted"><%= new Date(loan.date_out).toLocaleDateString() %></small>
+                                                    </div>
+                                                    <form action="/loans/return/<%= loan.id %>" method="POST">
+                                                        <button class="btn btn-success btn-sm">Devolver</button>
+                                                    </form>
+                                                </li>
+                                            <% }) %>
+                                        <% } else { %>
+                                            <p class="text-muted text-center my-3">No tiene herramientas pendientes.</p>
+                                        <% } %>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Historial de Uso</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm table-bordered">
+                                            <thead><tr><th>Item</th><th>Fecha Salida</th><th>Estado</th></tr></thead>
+                                            <tbody>
+                                                <% employee.loans.forEach(loan => { %>
+                                                    <tr class="<%= loan.status == 'devuelto' ? 'text-muted' : '' %>">
+                                                        <td><%= loan.product ? loan.product.description : '???' %></td>
+                                                        <td><%= new Date(loan.date_out).toLocaleDateString() %></td>
+                                                        <td><%= loan.status %></td>
+                                                    </tr>
+                                                <% }) %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <footer class="sticky-footer bg-white"><div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu App 2025</span></div></div></footer>
+        </div>
+    </div>
+    <%- include('partials/scripts') %>
+</body>
+</html>

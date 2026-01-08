@@ -1,0 +1,60 @@
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar" 
+    style="position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 1000;">
+
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/">
+        <div class="sidebar-brand-icon rotate-n-15">
+            <i class="fas fa-qrcode"></i>
+        </div>
+        <div class="sidebar-brand-text mx-3">INV. QR</div>
+    </a>
+
+    <hr class="sidebar-divider my-0">
+
+    <li class="nav-item <%= typeof page !== 'undefined' && page === 'dashboard' ? 'active' : '' %>">
+        <a class="nav-link" href="/">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Dashboard</span></a>
+    </li>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-heading">
+        Gestión
+    </div>
+
+    <li class="nav-item <%= typeof page !== 'undefined' && page === 'inventory' ? 'active' : '' %>">
+        <a class="nav-link" href="/inventory">
+            <i class="fas fa-fw fa-box"></i>
+            <span>Inventario</span></a>
+    </li>
+
+    <li class="nav-item <%= typeof page !== 'undefined' && page === 'loans' ? 'active' : '' %>">
+        <a class="nav-link" href="/loans">
+            <i class="fas fa-fw fa-tools"></i>
+            <span>Préstamos</span></a>
+    </li>
+
+    <li class="nav-item <%= typeof page !== 'undefined' && page === 'employees' ? 'active' : '' %>">
+        <a class="nav-link" href="/employees">
+            <i class="fas fa-fw fa-users"></i>
+            <span>Empleados</span></a>
+    </li>
+
+    <hr class="sidebar-divider d-none d-md-block">
+
+    <div class="text-center d-none d-md-inline">
+        <button class="rounded-circle border-0" id="sidebarToggle"></button>
+    </div>
+
+</ul>
+
+<script>
+    (function() {
+        var estado = localStorage.getItem("sidebarState");
+        // Si la memoria dice "cerrado", aplicamos las clases MANUALMENTE ahora mismo
+        if (estado === "closed") {
+            document.body.classList.add("sidebar-toggled");
+            document.getElementById("accordionSidebar").classList.add("toggled");
+        }
+    })();
+</script>

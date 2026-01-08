@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <%- include('partials/head') %>
+</head>
+
+<body id="page-top">
+    <div id="wrapper">
+        <%- include('partials/sidebar', { page: 'inventory' }) %>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+                    <h1 class="h3 mb-0 text-gray-800">Editar Producto</h1>
+                </nav>
+
+                <div class="container-fluid">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Modificar Información</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form action="/inventory/update/<%= product.id %>" method="POST">
+                                        
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Código QR / Barras</label>
+                                            <input type="text" name="code" class="form-control" value="<%= product.code %>" required>
+                                            <small class="form-text text-muted">Puedes escanear el nuevo código aquí si necesitas cambiarlo.</small>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-group col-md-6">
+                                                <label>Clave Corta</label>
+                                                <input type="text" name="short_code" class="form-control" value="<%= product.short_code %>">
+                                            </div>
+                                            <div class="form-group col-md-6">
+                                                <label>Stock Actual</label>
+                                                <input type="number" name="stock" class="form-control" value="<%= product.stock %>" required>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Descripción</label>
+                                            <input type="text" name="description" class="form-control" value="<%= product.description %>" required>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Tipo de Artículo</label>
+                                            <select name="category" class="form-control">
+                                                <option value="consumible" <%= product.category === 'consumible' ? 'selected' : '' %>>📦 Consumible (Se gasta)</option>
+                                                <option value="herramienta" <%= product.category === 'herramienta' ? 'selected' : '' %>>🔧 Herramienta (Se devuelve)</option>
+                                            </select>
+                                        </div>
+
+                                        <hr>
+                                        <div class="d-flex justify-content-between">
+                                            <a href="/inventory" class="btn btn-secondary">Cancelar</a>
+                                            <button type="submit" class="btn btn-success px-5">Guardar Cambios</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <footer class="sticky-footer bg-white"><div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu App 2025</span></div></div></footer>
+        </div>
+    </div>
+    <%- include('partials/scripts') %>
+</body>
+</html>

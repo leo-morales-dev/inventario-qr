@@ -1,0 +1,22 @@
+<script src="/vendor/jquery/jquery.min.js"></script>
+<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+<script src="/js/sb-admin-2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Escuchar clics en el botón para GUARDAR el nuevo estado
+        $("#sidebarToggle, #sidebarToggleTop").on('click', function() {
+            setTimeout(function() {
+                // Revisamos cómo quedó después de la animación
+                if ($("body").hasClass("sidebar-toggled")) {
+                    localStorage.setItem("sidebarState", "closed");
+                } else {
+                    localStorage.setItem("sidebarState", "open");
+                }
+            }, 200);
+        });
+    });
+</script>

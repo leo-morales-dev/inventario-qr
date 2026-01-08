@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <%- include('partials/head') %>
+    <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
+</head>
+
+<body id="page-top">
+
+    <div id="wrapper">
+
+        <%- include('partials/sidebar', { page: 'inventory' }) %>
+
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+                    <h1 class="h3 mb-0 text-gray-800">Panel de Control de Inventario</h1>
+                </nav>
+
+                <div class="container-fluid">
+
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-primary shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Productos</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= products.length %></div>
+                                        </div>
+                                        <div class="col-auto"><i class="fas fa-box fa-2x text-gray-300"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-warning shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Stock Bajo Alerta</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                <%= products.filter(p => p.stock < 5).length %>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto"><i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="searchAlert" class="alert alert-danger shadow collapse" role="alert" style="display:none;">
+                        <h5 class="alert-heading"><i class="fas fa-exclamation-circle"></i> Producto No Encontrado</h5>
+                        <p class="mb-0">No existe ningún artículo que coincida con: <strong id="searchText"></strong></p>
+                    </div>
+
+                    <div class="card shadow mb-4 border-bottom-success">
+                        <div class="card-header py-3 bg-gradient-success">
+                            <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-plus-circle mr-2"></i>Registrar Nuevo Item al Inventario</h6>
+                        </div>
+                        <div class="card-body">
+                            <form action="/inventory/add" method="POST">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="font-weight-bold text-gray-800">Código QR / Barras</label>
+                                        <div class="input-group">
+                                            <input type="text" name="code" id="inputCode" class="form-control" placeholder="Escanea o genera..." autofocus required>
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" id="btnGenerateQR" title="Generar código automático">
+                                                    <i class="fas fa-magic"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Si no tiene etiqueta, úsalo.</small>
+                                    </div>
+
+                                    <div class="col-md-3 mb-3">
+                                        <label class="font-weight-bold text-gray-800">Clave Corta</label>
+                                        <div class="input-group">
+                                            <input type="text" name="short_code" id="inputShortCode" class="form-control" placeholder="Ej: P-01">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" id="btnGenerateShort" title="Generar clave">
+                                                    <i class="fas fa-magic"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-5 mb-3">
+                                        <label class="font-weight-bold text-gray-800">Descripción del Producto</label>
+                                        <input type="text" name="description" class="form-control" placeholder="Ej: Taladro Percutor" required>
+                                    </div>
+                                </div>
+
+                                <div class="row align-items-end">
+                                    <div class="col-md-2 mb-3">
+                                        <label class="font-weight-bold text-gray-800">Stock Inicial</label>
+                                        <input type="number" name="stock" class="form-control" value="1" min="0">
+                                    </div>
+
+                                    <div class="col-md-3 mb-3">
+                                        <label class="font-weight-bold text-gray-800">Tipo</label>
+                                        <select name="category" class="form-control">
+                                            <option value="consumible">📦 Consumible (Se gasta)</option>
+                                            <option value="herramienta">🔧 Herramienta (Se devuelve)</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-7 mb-3">
+                                        <button type="submit" class="btn btn-success btn-block font-weight-bold shadow-sm">
+                                            <i class="fas fa-save mr-2"></i> Guardar en Base de Datos
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list mr-2"></i>Base de Datos General</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped table-hover" id="dataTable" width="100%" cellspacing="0">
+                                    <thead class="bg-gray-200 text-dark">
+                                        <tr>
+                                            <th>Clave</th>
+                                            <th>QR / ID</th>
+                                            <th>Descripción</th>
+                                            <th class="text-center">Tipo</th>
+                                            <th class="text-center">Stock</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% products.forEach(product => { %>
+                                            <tr>
+                                                <td class="align-middle">
+                                                    <% if(product.short_code) { %>
+                                                        <span class="badge badge-secondary" style="font-size: 0.9em;"><%= product.short_code %></span>
+                                                    <% } else { %>
+                                                        <span class="text-muted small">N/A</span>
+                                                    <% } %>
+                                                </td>
+                                                <td class="align-middle text-monospace text-primary small">
+                                                    <%= product.code %>
+                                                </td>
+                                                <td class="align-middle font-weight-bold text-dark">
+                                                    <%= product.description %>
+                                                </td>
+                                                <td class="align-middle text-center">
+                                                    <a href="/inventory/toggle/<%= product.id %>" class="text-decoration-none">
+                                                        <% if(product.category == 'herramienta') { %>
+                                                            <span class="badge badge-primary px-2 py-1" style="cursor: pointer; width: 100px;">
+                                                                <i class="fas fa-wrench mr-1"></i> Herram.
+                                                            </span>
+                                                        <% } else { %>
+                                                            <span class="badge badge-light border px-2 py-1" style="cursor: pointer; width: 100px;">
+                                                                <i class="fas fa-box mr-1"></i> Consum.
+                                                            </span>
+                                                        <% } %>
+                                                    </a>
+                                                </td>
+                                                <td class="align-middle text-center">
+                                                    <% if(product.stock < 5) { %>
+                                                        <span class="text-danger font-weight-bold" style="font-size: 1.2em;"><%= product.stock %></span>
+                                                    <% } else { %>
+                                                        <span class="text-success font-weight-bold" style="font-size: 1.2em;"><%= product.stock %></span>
+                                                    <% } %>
+                                                </td>
+                                                <td class="align-middle text-center" style="white-space: nowrap;">
+                                                    <a href="/inventory/qr/<%= product.id %>" target="_blank" class="btn btn-info btn-circle btn-sm shadow-sm" title="Ver QR">
+                                                        <i class="fas fa-qrcode"></i>
+                                                    </a>
+                                                    <a href="/inventory/edit/<%= product.id %>" class="btn btn-warning btn-circle btn-sm shadow-sm mx-1" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <button type="button" class="btn btn-danger btn-circle btn-sm shadow-sm btn-delete" onclick="confirmarEliminar('<%= product.id %>')" title="Eliminar">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu Empresa 2026</span></div></div>
+            </footer>
+        </div>
+    </div>
+
+    <form id="formEliminar" method="POST" style="display: none;"></form>
+
+    <%- include('partials/scripts') %>
+
+    <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+
+    <script>
+        function confirmarEliminar(id) {
+            if (confirm('¿Estás seguro de que quieres ELIMINAR este producto? Esta acción no se puede deshacer.')) {
+                var form = document.getElementById('formEliminar');
+                form.action = '/inventory/delete/' + id;
+                form.submit();
+            }
+        }
+
+        $(document).ready(function() {
+            var table = $('#dataTable').DataTable({
+                language: {
+                    "decimal": "", "emptyTable": "No hay productos registrados", "info": "Mostrando _START_ a _END_ de _TOTAL_ productos", "infoEmpty": "Mostrando 0 a 0 de 0 productos", "infoFiltered": "(Filtrado de _MAX_ total)", "infoPostFix": "", "thousands": ",", "lengthMenu": "Mostrar _MENU_ productos", "loadingRecords": "Cargando...", "processing": "Procesando...", "search": "🔍 Buscar / Escanear:", "zeroRecords": "No se encontraron coincidencias", "paginate": { "first": "Primero", "last": "Último", "next": "Siguiente", "previous": "Anterior" }
+                },
+                drawCallback: function(settings) {
+                    var api = this.api();
+                    var searchValue = api.search();
+                    if (searchValue.length > 0 && api.rows({filter: 'applied'}).count() === 0) {
+                         $('#searchAlert').slideDown();
+                         $('#searchText').text(searchValue);
+                    } else {
+                         $('#searchAlert').slideUp();
+                    }
+                }
+            });
+
+            $('.dataTables_filter input').unbind().bind('keyup change input', function (e) {
+                var input = $(this);
+                var val = input.val();
+                var cleanVal = val.replace(/'/g, '-').replace(/´/g, '-').trim();
+                if (val !== cleanVal) input.val(cleanVal);
+                if (cleanVal == "") $('#searchAlert').slideUp();
+                table.search(cleanVal).draw();
+            });
+
+            // 4.1 Generador de Código QR Automático
+            $('#btnGenerateQR').click(function() {
+                var randomCode = 'GEN-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
+                $('#inputCode').val(randomCode);
+            });
+
+            // 4.2 Generador de Clave Corta
+            $('#btnGenerateShort').click(function() {
+                var randomShort = 'ART-' + Math.floor(100 + Math.random() * 900);
+                $('#inputShortCode').val(randomShort);
+                $('input[name="description"]').focus();
+            });
+        });
+    </script>
+</body>
+</html>
