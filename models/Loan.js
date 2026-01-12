@@ -1,21 +1,33 @@
-const Sequelize = require('sequelize');
+const { DataTypes } = require('sequelize');
 const sequelize = require('../database');
 
-const Loan = sequelize.define('loan', {
+const Loan = sequelize.define('Loan', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
     quantity: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         defaultValue: 1
     },
     status: {
-        type: Sequelize.STRING, // 'prestado', 'devuelto'
-        defaultValue: 'prestado'
+        type: DataTypes.STRING, 
     },
     date_out: {
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.NOW
+        type: DataTypes.DATE
     },
     date_return: {
-        type: Sequelize.DATE // Se llena cuando regresan la herramienta
+        type: DataTypes.DATE
+    },
+    // --- ESTAS SON LAS COLUMNAS QUE FALTAN ---
+    backup_product: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    backup_employee: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 });
 

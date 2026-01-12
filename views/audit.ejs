@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0" style="background-image: url('/assets/img/inventory-cover.jpg'); background-size: cover;">
+      <span class="mask bg-gradient-info opacity-6"></span>
+  </div>
+
+  <%- include('partials/sidebar', { page: 'inventory' }) %>
+
+  <main class="main-content position-relative border-radius-lg ">
+    <%- include('partials/navbar', { page: 'Entrada Masiva' }) %>
+
+    <div class="container-fluid py-4">
+      
+      <div class="row">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h6><i class="fas fa-dolly-flatbed"></i> Carga Masiva de Stock</h6>
+                    <p class="text-sm mb-0">Usa el <b>Modo Inventario (Upload)</b> para sumar stock rápidamente.</p>
+                </div>
+                <div class="card-body">
+                    <form action="/inventory/audit-process" method="POST">
+                        <div class="form-group">
+                            <label>Vuelco de Datos (Escáner)</label>
+                            <textarea name="rawData" class="form-control" rows="15" placeholder="Haz clic aquí y escanea 'Upload Data'..." style="font-family: monospace;" required autofocus></textarea>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn bg-gradient-info w-100">
+                                <i class="fas fa-search"></i> Analizar Códigos
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <% if (typeof scannedItems !== 'undefined') { %>
+                <div class="card h-100">
+                    <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                        <h6>Vista Previa de Ingreso</h6>
+                        <div>
+                            <span class="badge bg-gradient-success">Encontrados: <%= stats.found %></span>
+                            <span class="badge bg-gradient-danger">Desconocidos: <%= stats.unknown %></span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body px-0 pt-0 pb-2">
+                        <div class="table-responsive p-0" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table align-items-center mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Producto Detectado</th>
+                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Stock Actual</th>
+                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">A Sumar (+)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% scannedItems.forEach(item => { %>
+                                        <tr>
+                                            <td class="px-4">
+                                                <% if(item.product) { %>
+                                                    <h6 class="mb-0 text-sm text-primary"><%= item.product.description %></h6>
+                                                    <p class="text-xs text-secondary mb-0">Cód: <%= item.code %></p>
+                                                <% } else { %>
+                                                    <h6 class="mb-0 text-sm text-danger">PRODUCTO DESCONOCIDO</h6>
+                                                    <p class="text-xs text-danger mb-0 font-weight-bold">Cód: <%= item.code %> (No se agregará)</p>
+                                                <% } %>
+                                            </td>
+                                            <td class="align-middle text-center">
+                                                <% if(item.product) { %>
+                                                    <span class="text-secondary text-xs font-weight-bold"><%= item.product.stock %></span>
+                                                <% } else { %>
+                                                    <span class="text-secondary text-xs">--</span>
+                                                <% } %>
+                                            </td>
+                                            <td class="align-middle text-center">
+                                                <span class="badge bg-gradient-success rounded-pill">+ <%= item.count %></span>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card-footer text-center">
+                        <% if (stats.found > 0) { %>
+                            <p class="text-sm text-muted mb-2">
+                                Se sumarán las cantidades detectadas al inventario actual. <br>
+                                <span class="text-danger text-xs">Los códigos desconocidos serán ignorados.</span>
+                            </p>
+                            
+                            <form action="/inventory/audit-confirm" method="POST" id="formConfirmStock">
+                                <input type="hidden" name="validItems" value='<%= JSON.stringify(scannedItems.filter(i => i.product)) %>'>
+                                
+                                <button type="button" onclick="confirmarIngreso()" class="btn bg-gradient-success w-100 mb-0">
+                                    <i class="fas fa-save me-2"></i> Confirmar y Actualizar Stock
+                                </button>
+                            </form>
+                        <% } else { %>
+                            <div class="alert alert-warning text-white" role="alert">
+                                <strong>Sin datos válidos.</strong> Revisa los códigos escaneados.
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="card h-100 d-flex align-items-center justify-content-center text-center p-5 opacity-6">
+                    <i class="fas fa-boxes fa-3x mb-3 text-secondary"></i>
+                    <h4>Esperando datos...</h4>
+                    <p>Vacía el escáner para ver qué productos se actualizarán.</p>
+                </div>
+            <% } %>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <%- include('partials/scripts') %>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script>
+      function confirmarIngreso() {
+          Swal.fire({
+              title: '¿Actualizar Inventario?',
+              text: "Se sumarán las cantidades detectadas al stock existente.",
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#2dce89',
+              cancelButtonColor: '#f5365c',
+              confirmButtonText: 'Sí, sumar stock',
+              cancelButtonText: 'Cancelar'
+          }).then((result) => {
+              if (result.isConfirmed) {
+                  document.getElementById('formConfirmStock').submit();
+              }
+          })
+      }
+  </script>
+</body>
+</html>

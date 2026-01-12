@@ -1,147 +1,273 @@
 const express = require('express');
 const app = express();
 const path = require('path');
-const sequelize = require('./database'); // Importamos la conexión
-const QRCode = require('qrcode'); // Importar librería de QR
+const session = require('express-session');
+const sequelize = require('./database'); 
+const QRCode = require('qrcode');
+const ExcelJS = require('exceljs'); // Librería para Excel
+const { Op } = require('sequelize'); // OPERADORES LOGICOS
 
 // Importar Modelos
 const Product = require('./models/Product');
 const Employee = require('./models/Employee');
 const Loan = require('./models/Loan');
+const User = require('./models/User');
 
 // Configuración básica
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 
+// --- CONFIGURACIÓN DE SESIÓN ---
+app.use(session({
+    secret: 'secreto_super_seguro_tooltrack', 
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 3600000 } // 1 hora
+}));
+
 // --- RELACIONES DE BASE DE DATOS ---
-Employee.hasMany(Loan);
-Loan.belongsTo(Employee);
-Product.hasMany(Loan);
-Loan.belongsTo(Product);
+Employee.hasMany(Loan, { foreignKey: 'employeeId' });
+Loan.belongsTo(Employee, { foreignKey: 'employeeId' });
 
-// --- SINCRONIZACIÓN ---
-sequelize.sync()
-    .then(() => console.log("--- Base de Datos Sincronizada ---"))
-    .catch(error => console.error("Error al crear base de datos:", error));
+Product.hasMany(Loan, { foreignKey: 'productId' });
+Loan.belongsTo(Product, { foreignKey: 'productId' });
 
-// ==========================================
-// 🛠️ FUNCIÓN PARA CORREGIR ERRORES DEL ESCÁNER
-// ==========================================
+// --- SINCRONIZACIÓN Y ADMIN ---
+// ¡IMPORTANTE! Usamos { alter: true } para proteger los datos
+sequelize.sync({ alter: true })
+    .then(async () => {
+        console.log("--- Base de Datos Sincronizada ---");
+        const userCount = await User.count();
+        if (userCount === 0) {
+            await User.create({
+                name: 'Administrador',
+                username: 'admin',
+                password: 'password123'
+            });
+            console.log(">>> USUARIO ADMIN CREADO: admin / password123 <<<");
+        }
+    })
+    .catch(error => console.error("Error BD:", error));
+
+// --- MIDDLEWARES ---
+const requireLogin = (req, res, next) => {
+    if (!req.session.userId) {
+        return res.redirect('/login');
+    }
+    next();
+};
+
+app.use((req, res, next) => {
+    res.locals.user = req.session.user || null;
+    next();
+});
+
 function limpiarCodigo(codigo) {
     if (!codigo) return "";
-    // Reemplaza comillas simples (') por guiones (-)
-    // Reemplaza también el signo de interrogación de cierre (?) que a veces sale en lugar de guion bajo
     return codigo.toUpperCase().replace(/'/g, '-').replace(/´/g, '-').trim();
 }
 
-// --- RUTAS ---
+// ==========================================
+// RUTAS
+// ==========================================
 
-// 1. Dashboard Principal
-app.get('/', async (req, res) => {
+// --- LOGIN / LOGOUT ---
+app.get('/login', (req, res) => {
+    if (req.session.userId) return res.redirect('/');
+    res.render('login', { error: null });
+});
+
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
     try {
-        const products = await Product.findAll();
-        const activeLoans = await Loan.count({ where: { status: 'prestado' } });
-        
-        const totalTools = products.filter(p => p.category === 'herramienta').length;
-        const totalConsumables = products.filter(p => p.category === 'consumible').length;
-        const lowStock = products.filter(p => p.stock < 5).length;
-
-        res.render('dashboard', { 
-            page: 'dashboard',
-            stats: { totalProducts: products.length, activeLoans, totalTools, totalConsumables, lowStock }
-        });
+        const user = await User.findOne({ where: { username: username } });
+        if (user && user.password === password) {
+            req.session.userId = user.id;
+            req.session.user = user;
+            return res.redirect('/');
+        } else {
+            return res.render('login', { error: 'Usuario o contraseña incorrectos' });
+        }
     } catch (error) {
-        console.error(error);
-        res.send("Error al cargar dashboard");
+        res.render('login', { error: 'Error del sistema' });
     }
 });
 
-// -----------------------------------------------------
-// MÓDULO DE INVENTARIO
-// -----------------------------------------------------
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.redirect('/login');
+    });
+});
 
-app.get('/inventory', async (req, res) => {
+// --- DASHBOARD ---
+app.get('/', requireLogin, async (req, res) => {
+    try {
+        const products = await Product.findAll();
+        const activeLoansCount = await Loan.count({ where: { status: 'prestado' } });
+        const employeesCount = await Employee.count(); 
+        const totalTools = products.filter(p => p.category === 'herramienta').length;
+        const totalConsumables = products.filter(p => p.category === 'consumible').length;
+        const lowStock = products.filter(p => p.stock < 5).length;
+        const recentLoans = await Loan.findAll({
+            limit: 5,
+            order: [['date_out', 'DESC']],
+            include: [Product, Employee]
+        });
+
+        res.render('dashboard', { 
+            page: 'dashboard',
+            stats: {
+                totalProducts: products.length,
+                activeLoans: activeLoansCount,
+                totalTools,
+                totalConsumables,
+                lowStock,
+                totalEmployees: employeesCount
+            },
+            recentLoans: recentLoans
+        });
+
+    } catch (error) {
+        res.send("Error al cargar dashboard: " + error.message);
+    }
+});
+
+// --- INVENTARIO ---
+
+// 1. Exportar Excel (Inventario INTELIGENTE)
+app.get('/inventory/export', requireLogin, async (req, res) => {
+    try {
+        const filter = req.query.filter || 'all';
+        let products = await Product.findAll();
+
+        if (filter === 'tools') {
+            products = products.filter(p => p.category === 'herramienta');
+        } else if (filter === 'consumables') {
+            products = products.filter(p => p.category === 'consumible');
+        } else if (filter === 'low') {
+            products = products.filter(p => p.stock < 5);
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Inventario');
+
+        worksheet.columns = [
+            { header: 'CLAVE', key: 'short_code', width: 15 },
+            { header: 'CODIGO', key: 'code', width: 25 },
+            { header: 'DESCRIPCIÓN', key: 'description', width: 40 },
+            { header: 'EXISTENCIA', key: 'stock', width: 15 },
+            { header: 'TIPO', key: 'category', width: 15 }
+        ];
+
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        products.forEach(product => {
+            worksheet.addRow({
+                short_code: product.short_code,
+                code: product.code,
+                description: product.description,
+                stock: product.stock,
+                category: product.category.toUpperCase()
+            });
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        
+        let filename = 'Inventario_General.xlsx';
+        if(filter === 'tools') filename = 'Inventario_Herramientas.xlsx';
+        if(filter === 'consumables') filename = 'Inventario_Consumibles.xlsx';
+        if(filter === 'low') filename = 'Inventario_StockBajo.xlsx';
+
+        res.setHeader('Content-Disposition', 'attachment; filename=' + filename);
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        console.error(error);
+        res.send("Error al exportar");
+    }
+});
+
+app.get('/inventory', requireLogin, async (req, res) => {
     try {
         const products = await Product.findAll(); 
         res.render('inventory', { products: products, page: 'inventory' }); 
     } catch (error) {
-        console.error(error);
         res.send("Error al cargar inventario");
     }
 });
 
-// Ruta para agregar (Con corrección de código)
-app.post('/inventory/add', async (req, res) => {
+app.post('/inventory/add', requireLogin, async (req, res) => {
     try {
         const { short_code, description, stock, category } = req.body;
-        
-        // 🧼 APLICAMOS LA LIMPIEZA AQUÍ TAMBIÉN
         const code = limpiarCodigo(req.body.code); 
-
         await Product.create({ code, short_code, description, stock, category });
-        res.redirect('/inventory');
+        res.redirect('/inventory?alert=created');
     } catch (error) {
-        console.error(error);
         res.send("Error al guardar: " + error.message);
     }
 });
 
-// --- RUTAS NUEVAS PARA EDITAR Y ELIMINAR ---
-
-// A. Mostrar formulario de edición
-app.get('/inventory/edit/:id', async (req, res) => {
+app.get('/inventory/edit/:id', requireLogin, async (req, res) => {
     try {
         const product = await Product.findByPk(req.params.id);
-        if (!product) {
-            return res.redirect('/inventory');
-        }
+        if (!product) return res.redirect('/inventory');
         res.render('edit_product', { product: product, page: 'inventory' });
     } catch (error) {
-        console.error(error);
         res.redirect('/inventory');
     }
 });
 
-// B. Guardar los cambios (Update)
-app.post('/inventory/update/:id', async (req, res) => {
+app.post('/inventory/update/:id', requireLogin, async (req, res) => {
     try {
         const { short_code, description, stock, category } = req.body;
-        // Importante: Usamos la misma limpieza de código por si lo cambian con el escáner
         const code = limpiarCodigo(req.body.code); 
-
-        await Product.update({
-            code,
-            short_code,
-            description,
-            stock,
-            category
-        }, {
-            where: { id: req.params.id }
-        });
-
-        res.redirect('/inventory');
+        await Product.update({ code, short_code, description, stock, category }, { where: { id: req.params.id } });
+        res.redirect('/inventory/edit/' + req.params.id + '?alert=updated');
     } catch (error) {
-        console.error(error);
         res.send("Error al actualizar: " + error.message);
     }
 });
 
-// C. Eliminar producto
-app.post('/inventory/delete/:id', async (req, res) => {
+app.post('/inventory/delete/:id', requireLogin, async (req, res) => {
     try {
-        await Product.destroy({
-            where: { id: req.params.id }
-        });
-        res.redirect('/inventory');
+        await Product.destroy({ where: { id: req.params.id } });
+        res.redirect('/inventory?alert=deleted');
     } catch (error) {
-        console.error(error);
         res.send("Error al eliminar producto");
     }
 });
 
-// Ruta para cambiar categoría (Herramienta <-> Consumible)
-app.get('/inventory/toggle/:id', async (req, res) => {
+// BORRADO MASIVO INTELIGENTE
+app.post('/inventory/delete-bulk', requireLogin, async (req, res) => {
+    try {
+        const { filter } = req.body; 
+        let whereClause = {};
+
+        if (filter === 'tools') {
+            whereClause = { category: 'herramienta' };
+        } else if (filter === 'consumables') {
+            whereClause = { category: 'consumible' };
+        } else if (filter === 'low') {
+            whereClause = { stock: { [Op.lt]: 5 } };
+        } else if (filter === 'all') {
+            whereClause = {};
+        } else {
+            return res.redirect('/inventory');
+        }
+
+        await Product.destroy({ where: whereClause });
+        res.redirect('/inventory?alert=bulk_deleted');
+
+    } catch (error) {
+        console.error(error);
+        res.send("Error al borrar datos masivos: " + error.message);
+    }
+});
+
+app.get('/inventory/toggle/:id', requireLogin, async (req, res) => {
     try {
         const product = await Product.findByPk(req.params.id);
         if (product) {
@@ -150,17 +276,14 @@ app.get('/inventory/toggle/:id', async (req, res) => {
         }
         res.redirect('/inventory');
     } catch (error) {
-        console.error(error);
         res.redirect('/inventory');
     }
 });
 
-// Generar QR
-app.get('/inventory/qr/:id', async (req, res) => {
+app.get('/inventory/qr/:id', requireLogin, async (req, res) => {
     try {
         const product = await Product.findByPk(req.params.id);
         if (!product) return res.send("Producto no encontrado");
-
         const qrImage = await QRCode.toDataURL(product.code);
         res.send(`
             <div style="text-align:center; margin-top:50px; font-family: Arial;">
@@ -175,63 +298,118 @@ app.get('/inventory/qr/:id', async (req, res) => {
     }
 });
 
-// -----------------------------------------------------
-// MÓDULO DE PRÉSTAMOS
-// -----------------------------------------------------
+// --- PRÉSTAMOS ---
 
-app.get('/loans', async (req, res) => {
+app.get('/loans/export', requireLogin, async (req, res) => {
     try {
         const loans = await Loan.findAll({
-            where: { status: 'prestado' },
             include: [Product, Employee],
             order: [['date_out', 'DESC']]
         });
-        res.render('loans', { loans: loans, page: 'loans' });
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Control de Herramienta');
+
+        worksheet.mergeCells('A1:F1');
+        const titleCell = worksheet.getCell('A1');
+        titleCell.value = 'CONTROL DE HERRAMIENTA';
+        titleCell.font = { bold: true, size: 14 };
+        titleCell.alignment = { horizontal: 'center' };
+
+        worksheet.getRow(3).values = ['NOMBRE', 'DESCRIPCION', 'REGISTRO (CÓDIGO)', 'FECHA SALIDA', 'FECHA ENTREGA', 'ESTATUS'];
+        worksheet.getRow(3).font = { bold: true };
+        worksheet.columns = [
+            { key: 'name', width: 30 },
+            { key: 'desc', width: 30 },
+            { key: 'code', width: 20 },
+            { key: 'out', width: 20 },
+            { key: 'return', width: 20 },
+            { key: 'status', width: 15 }
+        ];
+
+        loans.forEach(loan => {
+            const row = worksheet.addRow({
+                name: loan.employee ? loan.employee.name : 'Desconocido',
+                desc: loan.product ? loan.product.description : 'Eliminado',
+                code: loan.product ? loan.product.code : '--',
+                out: new Date(loan.date_out).toLocaleDateString(),
+                return: loan.date_return ? new Date(loan.date_return).toLocaleDateString() : '',
+                status: loan.status === 'prestado' ? 'RESGUARDO' : 'DEVUELTO'
+            });
+
+            if (loan.status === 'prestado') {
+                row.getCell('status').font = { color: { argb: 'FFFF0000' }, bold: true };
+            }
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=' + 'Reporte_Prestamos.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+
     } catch (error) {
         console.error(error);
+        res.send("Error al exportar reporte");
+    }
+});
+
+// --- PRÉSTAMOS (CORRECCIÓN DE DATOS FALTANTES) ---
+app.get('/loans', requireLogin, async (req, res) => {
+    try {
+        const allLoansRaw = await Loan.findAll({ order: [['date_out', 'DESC']] });
+        const allLoans = allLoansRaw.map(l => l.get({ plain: true }));
+
+        const productsRaw = await Product.findAll();
+        const employeesRaw = await Employee.findAll();
+        
+        const products = productsRaw.map(p => p.get({ plain: true }));
+        const employees = employeesRaw.map(e => e.get({ plain: true }));
+
+        allLoans.forEach(loan => {
+            loan.Product = products.find(p => p.id === loan.productId);
+            loan.Employee = employees.find(e => e.id === loan.employeeId);
+        });
+
+        const activeLoans = allLoans.filter(l => l.status === 'prestado');
+        const historyLoans = allLoans.filter(l => l.status === 'devuelto');
+
+        res.render('loans', { 
+            loans: activeLoans, 
+            history: historyLoans, 
+            page: 'loans' 
+        });
+
+    } catch (error) {
+        console.error("Error cargando préstamos:", error);
         res.send("Error al cargar préstamos");
     }
 });
 
-// REGISTRAR SALIDA (Con validación estricta de Empleado)
-app.post('/loans/add', async (req, res) => {
+app.post('/loans/add', requireLogin, async (req, res) => {
     try {
-        // Obtenemos los datos del formulario y limpiamos espacios
         const employeeName = req.body.employeeName.trim().toUpperCase();
         const productCode = limpiarCodigo(req.body.productCode);
-
-        console.log(`Intento de préstamo: ${employeeName} -> ${productCode}`);
-
-        // Cargamos la lista actual por si tenemos que volver a mostrar la página con un error
         const currentLoans = await Loan.findAll({ where: { status: 'prestado' }, include: [Product, Employee] });
-
-        // 1. Validar Producto
-        const product = await Product.findOne({ where: { code: productCode } });
         
+        const product = await Product.findOne({ where: { code: productCode } });
         if (!product || product.stock <= 0) {
             return res.render('loans', { 
                 loans: currentLoans,
                 page: 'loans',
-                error: !product ? `❌ Producto no encontrado (Leído: ${productCode})` : "⚠️ Sin stock disponible"
+                error: !product ? `❌ Producto no encontrado` : "⚠️ Sin stock disponible"
             });
         }
 
-        // 2. Validar Empleado (CAMBIO PRINCIPAL AQUÍ)
-        // Antes usábamos findOrCreate (buscar o crear). Ahora solo findOne (buscar).
-        const employee = await Employee.findOne({
-            where: { name: employeeName } 
-        });
-
-        // Si el empleado NO existe, mandamos error y no prestamos nada
+        const employee = await Employee.findOne({ where: { name: employeeName } });
         if (!employee) {
             return res.render('loans', { 
                 loans: currentLoans,
                 page: 'loans',
-                error: `🚫 ACCESO DENEGADO: El empleado "${employeeName}" no está registrado en la base de datos.`
+                error: `🚫 Empleado no registrado.`
             });
         }
 
-        // 3. Si todo está bien, creamos el Préstamo
         const newStatus = product.category === 'herramienta' ? 'prestado' : 'consumido';
         const returnDate = product.category === 'consumible' ? new Date() : null;
 
@@ -241,56 +419,48 @@ app.post('/loans/add', async (req, res) => {
             date_out: new Date(),
             date_return: returnDate,
             productId: product.id,
-            employeeId: employee.id
+            employeeId: employee.id,
+            
+            // --- GUARDAMOS LA FOTO (SNAPSHOT) DEL MOMENTO ---
+            backup_product: product.description,     
+            backup_employee: employee.name           
         });
 
         await product.decrement('stock');
         res.redirect('/loans');
 
     } catch (error) {
-        console.error(error);
         res.send("Error al procesar: " + error.message);
     }
 });
 
-// REGISTRAR DEVOLUCIÓN
-app.post('/loans/return/:id', async (req, res) => {
+app.post('/loans/return/:id', requireLogin, async (req, res) => {
     try {
         const loan = await Loan.findByPk(req.params.id);
         if (!loan) return res.send("Préstamo no encontrado");
-
         const product = await Product.findByPk(loan.productId);
-
         loan.status = 'devuelto';
         loan.date_return = new Date();
         await loan.save();
-
         if (product) await product.increment('stock');
-
         res.redirect('/loans');
     } catch (error) {
-        res.send("Error al devolver: " + error.message);
+        res.send("Error al devolver");
     }
 });
 
-// INICIAR SERVIDOR
-const PORT = 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`--- Servidor corriendo en http://localhost:${PORT} ---`);
-});
-
-// -----------------------------------------------------
-// MÓDULO DE EMPLEADOS
-// -----------------------------------------------------
-
-// 9. Ver Lista de Empleados
-app.get('/employees', async (req, res) => {
+// --- EMPLEADOS (SOLUCIÓN INFALIBLE) ---
+app.get('/employees', requireLogin, async (req, res) => {
     try {
-        // Traemos empleados y sus préstamos para contar cuántos tiene activos
-        const employees = await Employee.findAll({
-            include: [Loan],
-            order: [['name', 'ASC']]
+        const employeesRaw = await Employee.findAll({ order: [['name', 'ASC']] });
+        const employees = employeesRaw.map(e => e.get({ plain: true }));
+
+        const activeLoans = await Loan.findAll({ where: { status: 'prestado' } });
+
+        employees.forEach(emp => {
+            emp.Loans = activeLoans.filter(loan => loan.employeeId === emp.id);
         });
+
         res.render('employees', { employees: employees, page: 'employees' });
     } catch (error) {
         console.error(error);
@@ -298,43 +468,159 @@ app.get('/employees', async (req, res) => {
     }
 });
 
-// 10. Agregar Empleado Manualmente
-app.post('/employees/add', async (req, res) => {
+app.post('/employees/add', requireLogin, async (req, res) => {
     try {
         await Employee.create({ name: req.body.name.toUpperCase() });
         res.redirect('/employees');
     } catch (error) {
-        res.send("Error al crear empleado: " + error.message);
+        res.send("Error al crear empleado");
     }
 });
 
-// 11. Ver Perfil de Empleado (Historial y Gafete)
-app.get('/employees/:id', async (req, res) => {
+// --- PERFIL DE EMPLEADO (Unión Manual corregida) ---
+app.get('/employees/:id', requireLogin, async (req, res) => {
     try {
-        const employee = await Employee.findByPk(req.params.id, {
-            include: [
-                { 
-                    model: Loan, 
-                    include: [Product] // Para ver qué producto se llevó
-                }
-            ],
-            order: [[Loan, 'date_out', 'DESC']] // Ordenar préstamos del más reciente al viejo
+        const id = req.params.id;
+        // 1. Buscamos al empleado
+        const employeeRaw = await Employee.findByPk(id);
+        if (!employeeRaw) return res.redirect('/employees');
+        const employee = employeeRaw.get({ plain: true });
+        
+        const qrCode = await QRCode.toDataURL(employee.name);
+
+        // 2. Buscamos SU historial (Crudo)
+        const historyRaw = await Loan.findAll({
+            where: { employeeId: id },
+            order: [['date_out', 'DESC']]
+        });
+        const history = historyRaw.map(h => h.get({ plain: true }));
+
+        // 3. Traemos los productos para la UNIÓN MANUAL
+        const productsRaw = await Product.findAll();
+        const products = productsRaw.map(p => p.get({ plain: true }));
+
+        // 4. Conectamos los datos (Aseguramos que 'Product' exista con mayúscula)
+        history.forEach(loan => {
+            loan.Product = products.find(p => p.id === loan.productId);
         });
 
-        if (!employee) return res.send("Empleado no encontrado");
+        // 5. Calculamos estadísticas
+        const activeLoans = history.filter(h => h.status === 'prestado');
+        const totalLoans = history.length;
+        const returnedLoans = history.filter(h => h.status === 'devuelto').length;
 
-        // Generamos el QR con EL NOMBRE del empleado. 
-        // Así, al escanear este QR en la caja de texto "Empleado", se escribirá el nombre solo.
-        const qrImage = await QRCode.toDataURL(employee.name);
-
-        res.render('employee_profile', { 
-            employee: employee, 
-            qrImage: qrImage,
-            page: 'employees'
+        res.render('employee_profile', {
+            page: 'employees',
+            employee,
+            qrCode,
+            history,
+            stats: { active: activeLoans.length, total: totalLoans, returned: returnedLoans }
         });
-
     } catch (error) {
         console.error(error);
         res.send("Error al cargar perfil");
     }
+});
+
+app.post('/employees/update/:id', requireLogin, async (req, res) => {
+    try {
+        await Employee.update({ name: req.body.name.toUpperCase() }, { where: { id: req.params.id } });
+        res.redirect('/employees/' + req.params.id + '?alert=updated');
+    } catch (error) {
+        res.redirect('/employees');
+    }
+});
+
+app.post('/employees/delete/:id', requireLogin, async (req, res) => {
+    try {
+        await Employee.destroy({ where: { id: req.params.id } });
+        res.redirect('/employees');
+    } catch (error) {
+        res.send("Error al eliminar");
+    }
+});
+
+// ==========================================
+// MÓDULO DE ENTRADA MASIVA (AUDITORÍA/STOCK)
+// ==========================================
+
+// 1. Mostrar la pantalla
+app.get('/inventory/audit', requireLogin, (req, res) => {
+    res.render('audit', { page: 'inventory' }); 
+});
+
+// 2. Procesar el "Vuelco" (Análisis previo)
+app.post('/inventory/audit-process', requireLogin, async (req, res) => {
+    try {
+        const rawData = req.body.rawData;
+        if (!rawData) return res.redirect('/inventory/audit');
+
+        // Limpiar datos
+        const codes = rawData.split(/\r?\n/).map(c => c.trim()).filter(c => c !== "");
+
+        // Contar ocurrencias
+        const counts = {};
+        codes.forEach(code => {
+            counts[code] = (counts[code] || 0) + 1;
+        });
+
+        // Buscar en BD
+        const scannedItems = [];
+        let found = 0;
+        let unknown = 0;
+
+        const allProducts = await Product.findAll(); 
+        
+        for (const [code, count] of Object.entries(counts)) {
+            // Buscamos coincidencia
+            const product = allProducts.find(p => p.code === code || p.short_code === code);
+            
+            if (product) found++;
+            else unknown++;
+
+            scannedItems.push({
+                code: code,
+                count: count,
+                product: product ? product.get({ plain: true }) : null
+            });
+        }
+
+        res.render('audit', { 
+            page: 'inventory',
+            scannedItems: scannedItems,
+            stats: { found, unknown }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.send("Error al procesar lectura");
+    }
+});
+
+// 3. CONFIRMAR INGRESO (Sumar Stock)
+app.post('/inventory/audit-confirm', requireLogin, async (req, res) => {
+    try {
+        const items = JSON.parse(req.body.validItems);
+
+        for (const item of items) {
+            if (item.product && item.product.id) {
+                const productDb = await Product.findByPk(item.product.id);
+                if (productDb) {
+                    await productDb.increment('stock', { by: item.count });
+                }
+            }
+        }
+
+        res.redirect('/inventory?alert=stock_updated');
+
+    } catch (error) {
+        console.error(error);
+        res.send("Error al actualizar el stock: " + error.message);
+    }
+});
+
+// INICIAR
+const PORT = 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`--- Servidor corriendo en http://localhost:${PORT} ---`);
 });

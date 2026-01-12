@@ -1,75 +1,134 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <%- include('partials/head') %>
+  <%- include('partials/head') %>
 </head>
 
-<body id="page-top">
-    <div id="wrapper">
-        <%- include('partials/sidebar', { page: 'inventory' }) %>
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0"
+       style="background-image: url('/assets/img/inventory-cover.jpg'); background-size: cover; background-position: center center;">
+      <span class="mask bg-gradient-primary opacity-6"></span>
+  </div>
 
-        <div id="content-wrapper" class="d-flex flex-column">
-            <div id="content">
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
-                    <h1 class="h3 mb-0 text-gray-800">Editar Producto</h1>
-                </nav>
+  <%- include('partials/sidebar', { page: 'inventory' }) %>
 
-                <div class="container-fluid">
-                    <div class="row justify-content-center">
-                        <div class="col-lg-8">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Modificar Información</h6>
-                                </div>
-                                <div class="card-body">
-                                    <form action="/inventory/update/<%= product.id %>" method="POST">
-                                        
-                                        <div class="form-group">
-                                            <label class="font-weight-bold">Código QR / Barras</label>
-                                            <input type="text" name="code" class="form-control" value="<%= product.code %>" required>
-                                            <small class="form-text text-muted">Puedes escanear el nuevo código aquí si necesitas cambiarlo.</small>
-                                        </div>
+  <main class="main-content position-relative border-radius-lg ">
+    
+    <%- include('partials/navbar', { page: 'Editar Producto' }) %>
 
-                                        <div class="form-row">
-                                            <div class="form-group col-md-6">
-                                                <label>Clave Corta</label>
-                                                <input type="text" name="short_code" class="form-control" value="<%= product.short_code %>">
-                                            </div>
-                                            <div class="form-group col-md-6">
-                                                <label>Stock Actual</label>
-                                                <input type="number" name="stock" class="form-control" value="<%= product.stock %>" required>
-                                            </div>
-                                        </div>
-
-                                        <div class="form-group">
-                                            <label>Descripción</label>
-                                            <input type="text" name="description" class="form-control" value="<%= product.description %>" required>
-                                        </div>
-
-                                        <div class="form-group">
-                                            <label>Tipo de Artículo</label>
-                                            <select name="category" class="form-control">
-                                                <option value="consumible" <%= product.category === 'consumible' ? 'selected' : '' %>>📦 Consumible (Se gasta)</option>
-                                                <option value="herramienta" <%= product.category === 'herramienta' ? 'selected' : '' %>>🔧 Herramienta (Se devuelve)</option>
-                                            </select>
-                                        </div>
-
-                                        <hr>
-                                        <div class="d-flex justify-content-between">
-                                            <a href="/inventory" class="btn btn-secondary">Cancelar</a>
-                                            <button type="submit" class="btn btn-success px-5">Guardar Cambios</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="container-fluid py-4">
+      <div class="row">
+        <div class="col-12 col-lg-10 mx-auto"> <div class="card shadow-lg">
+            <div class="card-header pb-0">
+              <div class="d-flex align-items-center">
+                <p class="mb-0 font-weight-bold">Modificar Información</p>
+                <a href="/inventory" class="btn btn-outline-secondary btn-sm ms-auto">
+                    <i class="fas fa-arrow-left"></i> Regresar
+                </a>
+              </div>
             </div>
-            <footer class="sticky-footer bg-white"><div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu App 2025</span></div></div></footer>
+            
+            <div class="card-body">
+              <p class="text-uppercase text-sm text-muted">Detalles del Artículo</p>
+              
+              <form action="/inventory/update/<%= product.id %>" method="POST">
+                <div class="row">
+                  
+                  <div class="col-md-12">
+                    <div class="form-group">
+                      <label class="form-control-label">Código QR / Barras</label>
+                      <div class="input-group">
+                          <input class="form-control" type="text" name="code" value="<%= product.code %>">
+                          <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
+                      </div>
+                      <small class="form-text text-muted">Puedes escanear el nuevo código aquí si necesitas cambiarlo.</small>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label class="form-control-label">Clave Corta</label>
+                      <input class="form-control" type="text" name="short_code" value="<%= product.short_code %>">
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label class="form-control-label">Stock Actual</label>
+                      <input class="form-control" type="number" name="stock" value="<%= product.stock %>" min="0">
+                    </div>
+                  </div>
+
+                  <div class="col-md-12">
+                    <div class="form-group">
+                      <label class="form-control-label">Descripción</label>
+                      <input class="form-control" type="text" name="description" value="<%= product.description %>">
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label class="form-control-label">Tipo de Artículo</label>
+                      <select name="category" class="form-control">
+                        <option value="herramienta" <%= product.category === 'herramienta' ? 'selected' : '' %>>🔧 Herramienta (Se devuelve)</option>
+                        <option value="consumible" <%= product.category === 'consumible' ? 'selected' : '' %>>📦 Consumible (Se gasta)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                </div>
+                
+                <hr class="horizontal dark my-4">
+                
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn bg-gradient-success btn-lg">
+                        <i class="fas fa-save me-2"></i> Guardar Cambios
+                    </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+
         </div>
+      </div>
+      
+      <footer class="footer pt-3">
+        <div class="container-fluid">
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <%= new Date().getFullYear() %> ATN Fabricaciones S.A. de C.V.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
-    <%- include('partials/scripts') %>
+  </main>
+
+  <%- include('partials/scripts') %>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script>
+    // Detector de Alertas para Edición
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('alert') === 'updated') {
+        Swal.fire({
+            icon: 'success',
+            title: '¡Actualizado!',
+            text: 'La información del producto se guardó correctamente.',
+            confirmButtonColor: '#5e72e4',
+            timer: 3000
+        });
+        // Limpiar URL
+        window.history.replaceState(null, null, window.location.pathname);
+    }
+  </script>
+
 </body>
 </html>

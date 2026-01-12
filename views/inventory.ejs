@@ -1,262 +1,642 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <%- include('partials/head') %>
-    <link href="/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
+  <%- include('partials/head') %>
+  <style>
+      /* --- ESTILOS DE TABLA --- */
+      .dataTables_wrapper .page-item .page-link {
+          border-radius: 8px !important;
+          margin: 0 3px;
+          border: 1px solid #dee2e6;
+          color: #5e72e4; 
+          width: auto !important;
+          min-width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 15px;
+          font-weight: 600;
+          font-size: 0.85rem;
+      }
+      .dataTables_wrapper .page-item:not(.previous):not(.next) .page-link {
+          border-radius: 50% !important;
+          width: 36px !important;
+          padding: 0 !important;
+      }
+      .dataTables_wrapper .page-item.active .page-link {
+          background-color: #5e72e4 !important;
+          border-color: #5e72e4 !important;
+          color: white;
+          box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11);
+      }
+      .dataTables_wrapper .dataTables_length select {
+          border: 1px solid #d2d6da;
+          border-radius: 0.5rem;
+          padding: 0.25rem 1.5rem 0.25rem 0.5rem;
+          margin: 0 0.5rem;
+      }
+
+      /* --- ESTILOS DE TARJETAS --- */
+      .cursor-pointer {
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 2px solid transparent !important; 
+      }
+      .cursor-pointer:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(50, 50, 93, 0.1);
+      }
+      
+      /* --- COLORES DE ESTADO ACTIVO --- */
+      .active-total { border-color: #5e72e4 !important; background-color: #f6f9fc !important; }
+      .active-tools { border-color: #11cdef !important; background-color: #f8fdfe !important; }
+      .active-consumables { border-color: #8392ab !important; background-color: #f6f9fc !important; }
+      .active-low { border-color: #fb6340 !important; background-color: #fff3cd !important; }
+      
+      .dataTables_wrapper .dataTables_filter input {
+          border: 1px solid #d2d6da;
+          border-radius: 0.5rem;
+          padding: 0.4rem;
+      }
+  </style>
 </head>
 
-<body id="page-top">
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0"
+       style="background-image: url('/assets/img/inventory-cover.jpg'); background-size: cover; background-position: center center;">
+      <span class="mask bg-gradient-primary opacity-6"></span>
+  </div>
+  
+  <%- include('partials/sidebar', { page: 'inventory' }) %>
 
-    <div id="wrapper">
+  <main class="main-content position-relative border-radius-lg ">
+    <%- include('partials/navbar', { page: 'Inventario' }) %>
 
-        <%- include('partials/sidebar', { page: 'inventory' }) %>
-
-        <div id="content-wrapper" class="d-flex flex-column">
-            <div id="content">
-
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
-                        <i class="fa fa-bars"></i>
-                    </button>
-                    <h1 class="h3 mb-0 text-gray-800">Panel de Control de Inventario</h1>
-                </nav>
-
-                <div class="container-fluid">
-
-                    <div class="row">
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card border-left-primary shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Productos</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= products.length %></div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-box fa-2x text-gray-300"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card border-left-warning shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Stock Bajo Alerta</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                                <%= products.filter(p => p.stock < 5).length %>
-                                            </div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="searchAlert" class="alert alert-danger shadow collapse" role="alert" style="display:none;">
-                        <h5 class="alert-heading"><i class="fas fa-exclamation-circle"></i> Producto No Encontrado</h5>
-                        <p class="mb-0">No existe ningún artículo que coincida con: <strong id="searchText"></strong></p>
-                    </div>
-
-                    <div class="card shadow mb-4 border-bottom-success">
-                        <div class="card-header py-3 bg-gradient-success">
-                            <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-plus-circle mr-2"></i>Registrar Nuevo Item al Inventario</h6>
-                        </div>
-                        <div class="card-body">
-                            <form action="/inventory/add" method="POST">
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <label class="font-weight-bold text-gray-800">Código QR / Barras</label>
-                                        <div class="input-group">
-                                            <input type="text" name="code" id="inputCode" class="form-control" placeholder="Escanea o genera..." autofocus required>
-                                            <div class="input-group-append">
-                                                <button class="btn btn-outline-secondary" type="button" id="btnGenerateQR" title="Generar código automático">
-                                                    <i class="fas fa-magic"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <small class="text-muted">Si no tiene etiqueta, úsalo.</small>
-                                    </div>
-
-                                    <div class="col-md-3 mb-3">
-                                        <label class="font-weight-bold text-gray-800">Clave Corta</label>
-                                        <div class="input-group">
-                                            <input type="text" name="short_code" id="inputShortCode" class="form-control" placeholder="Ej: P-01">
-                                            <div class="input-group-append">
-                                                <button class="btn btn-outline-secondary" type="button" id="btnGenerateShort" title="Generar clave">
-                                                    <i class="fas fa-magic"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-5 mb-3">
-                                        <label class="font-weight-bold text-gray-800">Descripción del Producto</label>
-                                        <input type="text" name="description" class="form-control" placeholder="Ej: Taladro Percutor" required>
-                                    </div>
-                                </div>
-
-                                <div class="row align-items-end">
-                                    <div class="col-md-2 mb-3">
-                                        <label class="font-weight-bold text-gray-800">Stock Inicial</label>
-                                        <input type="number" name="stock" class="form-control" value="1" min="0">
-                                    </div>
-
-                                    <div class="col-md-3 mb-3">
-                                        <label class="font-weight-bold text-gray-800">Tipo</label>
-                                        <select name="category" class="form-control">
-                                            <option value="consumible">📦 Consumible (Se gasta)</option>
-                                            <option value="herramienta">🔧 Herramienta (Se devuelve)</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="col-md-7 mb-3">
-                                        <button type="submit" class="btn btn-success btn-block font-weight-bold shadow-sm">
-                                            <i class="fas fa-save mr-2"></i> Guardar en Base de Datos
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div class="card shadow mb-4">
-                        <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list mr-2"></i>Base de Datos General</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-striped table-hover" id="dataTable" width="100%" cellspacing="0">
-                                    <thead class="bg-gray-200 text-dark">
-                                        <tr>
-                                            <th>Clave</th>
-                                            <th>QR / ID</th>
-                                            <th>Descripción</th>
-                                            <th class="text-center">Tipo</th>
-                                            <th class="text-center">Stock</th>
-                                            <th class="text-center">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% products.forEach(product => { %>
-                                            <tr>
-                                                <td class="align-middle">
-                                                    <% if(product.short_code) { %>
-                                                        <span class="badge badge-secondary" style="font-size: 0.9em;"><%= product.short_code %></span>
-                                                    <% } else { %>
-                                                        <span class="text-muted small">N/A</span>
-                                                    <% } %>
-                                                </td>
-                                                <td class="align-middle text-monospace text-primary small">
-                                                    <%= product.code %>
-                                                </td>
-                                                <td class="align-middle font-weight-bold text-dark">
-                                                    <%= product.description %>
-                                                </td>
-                                                <td class="align-middle text-center">
-                                                    <a href="/inventory/toggle/<%= product.id %>" class="text-decoration-none">
-                                                        <% if(product.category == 'herramienta') { %>
-                                                            <span class="badge badge-primary px-2 py-1" style="cursor: pointer; width: 100px;">
-                                                                <i class="fas fa-wrench mr-1"></i> Herram.
-                                                            </span>
-                                                        <% } else { %>
-                                                            <span class="badge badge-light border px-2 py-1" style="cursor: pointer; width: 100px;">
-                                                                <i class="fas fa-box mr-1"></i> Consum.
-                                                            </span>
-                                                        <% } %>
-                                                    </a>
-                                                </td>
-                                                <td class="align-middle text-center">
-                                                    <% if(product.stock < 5) { %>
-                                                        <span class="text-danger font-weight-bold" style="font-size: 1.2em;"><%= product.stock %></span>
-                                                    <% } else { %>
-                                                        <span class="text-success font-weight-bold" style="font-size: 1.2em;"><%= product.stock %></span>
-                                                    <% } %>
-                                                </td>
-                                                <td class="align-middle text-center" style="white-space: nowrap;">
-                                                    <a href="/inventory/qr/<%= product.id %>" target="_blank" class="btn btn-info btn-circle btn-sm shadow-sm" title="Ver QR">
-                                                        <i class="fas fa-qrcode"></i>
-                                                    </a>
-                                                    <a href="/inventory/edit/<%= product.id %>" class="btn btn-warning btn-circle btn-sm shadow-sm mx-1" title="Editar">
-                                                        <i class="fas fa-edit"></i>
-                                                    </a>
-                                                    <button type="button" class="btn btn-danger btn-circle btn-sm shadow-sm btn-delete" onclick="confirmarEliminar('<%= product.id %>')" title="Eliminar">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        <% }) %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
+    <div class="container-fluid py-4">
+      
+      <div class="row mb-4">
+        
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+          <div class="card cursor-pointer active-total" id="cardTotal" onclick="applyFilter('all')" title="Ver todo el inventario">
+            <div class="card-body p-3">
+              <div class="row">
+                <div class="col-8">
+                  <div class="numbers">
+                    <p class="text-sm mb-0 text-uppercase font-weight-bold">Total</p>
+                    <h5 class="font-weight-bolder"><%= products.length %> Items</h5>
+                  </div>
                 </div>
+                <div class="col-4 text-end">
+                  <div class="icon icon-shape bg-gradient-primary shadow-primary text-center rounded-circle">
+                    <i class="fas fa-boxes text-lg opacity-10" aria-hidden="true"></i>
+                  </div>
+                </div>
+              </div>
             </div>
-            <footer class="sticky-footer bg-white">
-                <div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu Empresa 2026</span></div></div>
-            </footer>
+          </div>
         </div>
+
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card cursor-pointer" id="cardTools" onclick="applyFilter('tools')" title="Ver solo herramientas">
+              <div class="card-body p-3">
+                <div class="row">
+                  <div class="col-8">
+                    <div class="numbers">
+                      <p class="text-sm mb-0 text-uppercase font-weight-bold">Herramientas</p>
+                      <h5 class="font-weight-bolder text-info">
+                        <%= products.filter(p => p.category === 'herramienta').length %>
+                      </h5>
+                    </div>
+                  </div>
+                  <div class="col-4 text-end">
+                    <div class="icon icon-shape bg-gradient-info shadow-info text-center rounded-circle">
+                      <i class="fas fa-wrench text-lg opacity-10" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card cursor-pointer" id="cardConsumables" onclick="applyFilter('consumables')" title="Ver solo consumibles">
+              <div class="card-body p-3">
+                <div class="row">
+                  <div class="col-8">
+                    <div class="numbers">
+                      <p class="text-sm mb-0 text-uppercase font-weight-bold">Consumibles</p>
+                      <h5 class="font-weight-bolder text-secondary">
+                        <%= products.filter(p => p.category === 'consumible').length %>
+                      </h5>
+                    </div>
+                  </div>
+                  <div class="col-4 text-end">
+                    <div class="icon icon-shape bg-gradient-secondary shadow-secondary text-center rounded-circle">
+                      <i class="fas fa-box-open text-lg opacity-10" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card cursor-pointer" id="cardLowStock" onclick="applyFilter('low')" title="Ver alertas de stock">
+              <div class="card-body p-3">
+                <div class="row">
+                  <div class="col-8">
+                    <div class="numbers">
+                      <p class="text-sm mb-0 text-uppercase font-weight-bold">Stock Bajo</p>
+                      <h5 class="font-weight-bolder text-warning">
+                        <%= products.filter(p => p.stock < 5).length %>
+                      </h5>
+                    </div>
+                  </div>
+                  <div class="col-4 text-end">
+                    <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
+                      <i class="fas fa-exclamation-triangle text-lg opacity-10" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+      </div>
+
+      <div id="searchAlert" class="alert alert-danger text-white shadow collapse" role="alert" style="display:none;">
+        <span class="alert-icon"><i class="fas fa-exclamation-circle"></i></span>
+        <span class="alert-text"><strong>¡Atención!</strong> No existe producto con código: <strong id="searchText"></strong></span>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <div class="card mb-4">
+            <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="fas fa-plus text-success"></i> Registrar Nuevo Item</h6>
+              
+              <a href="/inventory/audit" class="btn btn-sm bg-gradient-info mb-0">
+                  <i class="fas fa-dolly-flatbed me-1"></i> Entrada Masiva
+              </a>
+
+            </div>
+            <div class="card-body">
+                <form action="/inventory/add" method="POST">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="form-control-label">Código QR / Barras</label>
+                                <div class="input-group">
+                                    <input type="text" name="code" id="inputCode" class="form-control" placeholder="Escanea o genera..." autofocus required>
+                                    <button class="btn btn-outline-primary mb-0" type="button" id="btnGenerateQR" title="Generar Auto">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-control-label">Clave Corta</label>
+                                <div class="input-group">
+                                    <input type="text" name="short_code" id="inputShortCode" class="form-control" placeholder="Ej: P-01">
+                                    <button class="btn btn-outline-secondary mb-0" type="button" id="btnGenerateShort">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="form-group">
+                                <label class="form-control-label">Descripción</label>
+                                <input type="text" name="description" class="form-control" placeholder="Ej: Taladro Percutor 1/2" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-control-label">Stock Inicial</label>
+                                <input type="number" name="stock" class="form-control" value="1" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="form-control-label">Tipo</label>
+                                <select name="category" class="form-control">
+                                    <option value="consumible">📦 Consumible</option>
+                                    <option value="herramienta">🔧 Herramienta</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="submit" class="btn bg-gradient-success w-100 mt-4">Guardar en Base de Datos</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <div class="card mb-4" id="inventoryCard">
+            
+            <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+              <h6>Base de Datos de Inventario</h6>
+              
+              <div class="d-flex align-items-center">
+                  <div class="input-group me-3" style="width: 250px;">
+                      <span class="input-group-text text-body"><i class="fas fa-search" aria-hidden="true"></i></span>
+                      <input type="text" class="form-control" id="customSearch" placeholder="Buscar...">
+                  </div>
+
+                  <a href="/inventory/export?filter=all" id="btnExport" class="btn btn-outline-success btn-sm mb-0">
+                    <i class="fas fa-file-excel me-1"></i> Descargar Excel
+                  </a>
+
+                  <button type="button" onclick="confirmarBorradoMasivo()" class="btn btn-outline-danger btn-sm mb-0 ms-2" id="btnBulkDelete">
+                    <i class="fas fa-trash-alt me-1"></i> Borrar Lista
+                  </button>
+
+              </div>
+            </div>
+
+            <div class="card-body px-0 pt-0 pb-2">
+              <div class="table-responsive px-4 pt-4 pb-4">
+                <table class="table align-items-center mb-0" id="dataTable">
+                  <thead>
+                    <tr>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Producto</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Código</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Tipo</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Stock</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% products.forEach(product => { %>
+                      <tr>
+                        <td>
+                          <div class="d-flex px-2 py-1">
+                            <div class="d-flex flex-column justify-content-center">
+                              <h6 class="mb-0 text-sm"><%= product.description %></h6>
+                              <p class="text-xs text-secondary mb-0"><%= product.short_code || 'Sin clave' %></p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <p class="text-xs font-weight-bold mb-0"><%= product.code %></p>
+                        </td>
+                        <td class="align-middle text-center text-sm">
+                            <a href="/inventory/toggle/<%= product.id %>">
+                                <% if(product.category == 'herramienta') { %>
+                                    <span class="badge badge-sm bg-gradient-info">Herramienta</span>
+                                <% } else { %>
+                                    <span class="badge badge-sm bg-gradient-secondary">Consumible</span>
+                                <% } %>
+                            </a>
+                        </td>
+                        <td class="align-middle text-center">
+                            <% if(product.stock < 5) { %>
+                                <span class="text-danger text-xs font-weight-bold"><%= product.stock %> (Bajo)</span>
+                            <% } else { %>
+                                <span class="text-success text-xs font-weight-bold"><%= product.stock %></span>
+                            <% } %>
+                        </td>
+                        <td class="align-middle text-center">
+                          <a href="/inventory/qr/<%= product.id %>" target="_blank" class="mx-2" data-bs-toggle="tooltip" title="Ver QR">
+                            <i class="fas fa-qrcode text-lg text-primary"></i>
+                          </a>
+                          <a href="/inventory/edit/<%= product.id %>" class="mx-2" data-bs-toggle="tooltip" title="Editar">
+                            <i class="fas fa-edit text-lg text-warning"></i>
+                          </a>
+                          <a href="javascript:;" onclick="confirmarEliminar('<%= product.id %>')" class="mx-2" data-bs-toggle="tooltip" title="Borrar">
+                            <i class="fas fa-trash text-lg text-danger"></i>
+                          </a>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer pt-3">
+        <div class="container-fluid">
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <%= new Date().getFullYear() %> ATN Fabricaciones S.A. de C.V.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
+  </main>
 
-    <form id="formEliminar" method="POST" style="display: none;"></form>
+  <form id="formEliminar" method="POST" style="display: none;"></form>
 
-    <%- include('partials/scripts') %>
+  <%- include('partials/scripts') %>
 
-    <script src="/vendor/datatables/jquery.dataTables.min.js"></script>
-    <script src="/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 
-    <script>
-        function confirmarEliminar(id) {
-            if (confirm('¿Estás seguro de que quieres ELIMINAR este producto? Esta acción no se puede deshacer.')) {
+  <script id="products-data" type="application/json">
+    <%- JSON.stringify(products) %>
+  </script>
+
+  <script>
+    // ------------------------------------------------
+    // LÓGICA DE FILTRADO INTELIGENTE (4 ESTADOS)
+    // ------------------------------------------------
+    var currentFilter = 'all';
+
+    $.fn.dataTable.ext.search.push(
+        function(settings, data, dataIndex) {
+            // Preparamos los datos de la fila
+            const stockStr = data[3] || "0"; 
+            const stockVal = parseFloat(stockStr.replace(/<[^>]+>/g, '').replace(/[^0-9.]/g, ''));
+            const tipo = (data[2] || "").toLowerCase(); // Columna 'Tipo' es el índice 2
+
+            if (currentFilter === 'all') return true;
+            
+            // Filtro Stock Bajo
+            if (currentFilter === 'low') {
+                return stockVal < 5;
+            }
+            
+            // Filtro Herramientas
+            if (currentFilter === 'tools') {
+                return tipo.includes('herramienta');
+            }
+
+            // Filtro Consumibles
+            if (currentFilter === 'consumables') {
+                return tipo.includes('consumible');
+            }
+
+            return true;
+        }
+    );
+
+    function applyFilter(type) {
+        currentFilter = type;
+        
+        // Elementos DOM
+        var cardTotal = document.getElementById('cardTotal');
+        var cardTools = document.getElementById('cardTools');
+        var cardConsumables = document.getElementById('cardConsumables');
+        var cardLow = document.getElementById('cardLowStock');
+        
+        // **NUEVO: ACTUALIZAR BOTÓN DE EXCEL**
+        // Cambiamos el enlace para que descargue lo que estamos viendo
+        var btnExport = document.getElementById('btnExport');
+        if(btnExport) {
+            btnExport.href = '/inventory/export?filter=' + type;
+        }
+
+        // 1. Resetear estilos
+        cardTotal.classList.remove('active-total');
+        cardTools.classList.remove('active-tools');
+        cardConsumables.classList.remove('active-consumables');
+        cardLow.classList.remove('active-low');
+
+        // 2. Aplicar estilos activos
+        if (type === 'all') {
+            cardTotal.classList.add('active-total');
+        } else if (type === 'tools') {
+            cardTools.classList.add('active-tools');
+        } else if (type === 'consumables') {
+            cardConsumables.classList.add('active-consumables');
+        } else if (type === 'low') {
+            cardLow.classList.add('active-low');
+        }
+
+        // 3. Redibujar la tabla
+        $('#dataTable').DataTable().draw();
+    }
+
+    // ------------------------------------------------
+    // ALERTA POPUP INICIAL
+    // ------------------------------------------------
+    const rawData = document.getElementById('products-data').textContent;
+    const todosLosProductos = JSON.parse(rawData);
+
+    const itemsBajos = todosLosProductos
+        .filter(item => item.stock < 5)
+        .map(item => { return { desc: item.description, stock: item.stock }; });
+
+    if (itemsBajos.length > 0) {
+        
+        let tableRows = '';
+        const maxMostrar = 5;
+        const mostrar = itemsBajos.slice(0, maxMostrar);
+        
+        mostrar.forEach((item, index) => {
+            const bgRow = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8f9fe;';
+            tableRows += `
+                <tr style="${bgRow} border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 4px 8px; text-align: left; color: #32325d; font-size: 0.85rem;">${item.desc}</td>
+                    <td style="padding: 4px 8px; text-align: right; color: #fb6340; font-weight: bold; font-size: 0.85rem;">${item.stock}</td>
+                </tr>
+            `;
+        });
+
+        let masInfo = '';
+        if (itemsBajos.length > maxMostrar) {
+            masInfo = `<div style="padding-top: 5px; font-size: 0.75rem; color: #8898aa; font-style: italic;">... y ${itemsBajos.length - maxMostrar} más.</div>`;
+        }
+
+        const contentHTML = `
+            <div style="background-color: #f6f9fc; border-radius: 6px; padding: 10px; border-left: 4px solid #fb6340;">
+                <p style="text-align: left; margin-bottom: 5px; font-size: 0.85rem; color: #525f7f;">
+                    Artículos con niveles críticos:
+                </p>
+                <div style="border-radius: 4px; overflow: hidden; border: 1px solid #e9ecef;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        ${tableRows}
+                    </table>
+                </div>
+                ${masInfo}
+            </div>
+        `;
+
+        Swal.fire({
+            title: 'Nivel de Stock Crítico',
+            html: contentHTML,
+            icon: 'warning',
+            width: '450px',
+            padding: '1rem',
+            showCancelButton: true,
+            confirmButtonText: 'Revisar',
+            cancelButtonText: 'Entendido',
+            confirmButtonColor: '#fb6340',
+            cancelButtonColor: '#2dce89',
+            customClass: {
+                title: 'text-warning font-weight-bold mb-1',
+                popup: 'shadow-lg',
+                actions: 'mt-2'
+            },
+            reverseButtons: true
+            
+        }).then((result) => {
+            if (result.isConfirmed) {
+                applyFilter('low');
+                $('html, body').animate({
+                    scrollTop: $("#inventoryCard").offset().top - 100
+                }, 800);
+            }
+        });
+    }
+
+    // ------------------------------------------------
+    // ALERTAS DE OPERACIONES
+    // ------------------------------------------------
+    const urlParams = new URLSearchParams(window.location.search);
+    const alertType = urlParams.get('alert');
+
+    if (alertType === 'created') {
+        Swal.fire({ icon: 'success', title: 'Registrado', text: 'El ítem se guardó correctamente.', confirmButtonColor: '#5e72e4', timer: 3000 });
+        window.history.replaceState(null, null, window.location.pathname);
+    } 
+    if (alertType === 'deleted') {
+        Swal.fire({ icon: 'success', title: 'Eliminado', text: 'El ítem ha sido borrado.', confirmButtonColor: '#5e72e4', timer: 3000 });
+        window.history.replaceState(null, null, window.location.pathname);
+    }
+
+    function confirmarEliminar(id) {
+        Swal.fire({
+            title: '¿Confirmar eliminación?',
+            text: "No se podrá deshacer.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f5365c',
+            cancelButtonColor: '#2dce89',
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
                 var form = document.getElementById('formEliminar');
                 form.action = '/inventory/delete/' + id;
                 form.submit();
             }
+        })
+    }
+
+    // ------------------------------------------------
+    // INICIALIZACIÓN
+    // ------------------------------------------------
+    $(document).ready(function() {
+        var table = $('#dataTable').DataTable({
+            language: { "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
+            "pageLength": 10,
+            "dom": '<"mb-4"l>rt<"d-flex justify-content-between align-items-center mt-4 border-top pt-3"ip><"clear">',
+            "drawCallback": function(settings) {
+                var api = this.api();
+                var searchValue = api.search();
+                if (searchValue.length > 0 && api.rows({filter: 'applied'}).count() === 0) {
+                        $('#searchAlert').slideDown();
+                        $('#searchText').text(searchValue);
+                } else {
+                        $('#searchAlert').slideUp();
+                }
+            }
+        });
+
+        $('#customSearch').on('keyup change input', function() {
+            var val = $(this).val();
+            var cleanVal = val.replace(/'/g, '-').replace(/´/g, '-').trim();
+            if (val !== cleanVal) $(this).val(cleanVal);
+            if (cleanVal == "") $('#searchAlert').slideUp();
+            table.search(cleanVal).draw();
+        });
+
+        $('#btnGenerateQR').click(function() {
+            var randomCode = 'GEN-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
+            $('#inputCode').val(randomCode);
+        });
+        $('#btnGenerateShort').click(function() {
+            var randomShort = 'ART-' + Math.floor(100 + Math.random() * 900);
+            $('#inputShortCode').val(randomShort);
+            $('input[name="description"]').focus();
+        });
+    });
+
+    // ------------------------------------------------
+    // LÓGICA DE BORRADO MASIVO
+    // ------------------------------------------------
+    function confirmarBorradoMasivo() {
+        // 1. Detectamos qué filtro está activo actualmente
+        // (La variable 'currentFilter' ya existe en tu código anterior)
+        let mensaje = "";
+        let titulo = "";
+
+        if (currentFilter === 'all') {
+            titulo = '¿VACIAR TODO EL INVENTARIO?';
+            mensaje = '¡Cuidado! Se eliminarán TODOS los productos registrados. No podrás deshacer esto.';
+        } else if (currentFilter === 'tools') {
+            titulo = '¿Borrar todas las Herramientas?';
+            mensaje = 'Se eliminarán solo los ítems de categoría HERRAMIENTA.';
+        } else if (currentFilter === 'consumables') {
+            titulo = '¿Borrar todos los Consumibles?';
+            mensaje = 'Se eliminarán solo los ítems de categoría CONSUMIBLE.';
+        } else if (currentFilter === 'low') {
+            titulo = '¿Borrar Stock Bajo?';
+            mensaje = 'Se eliminarán todos los productos que tengan menos de 5 unidades.';
         }
 
-        $(document).ready(function() {
-            var table = $('#dataTable').DataTable({
-                language: {
-                    "decimal": "", "emptyTable": "No hay productos registrados", "info": "Mostrando _START_ a _END_ de _TOTAL_ productos", "infoEmpty": "Mostrando 0 a 0 de 0 productos", "infoFiltered": "(Filtrado de _MAX_ total)", "infoPostFix": "", "thousands": ",", "lengthMenu": "Mostrar _MENU_ productos", "loadingRecords": "Cargando...", "processing": "Procesando...", "search": "🔍 Buscar / Escanear:", "zeroRecords": "No se encontraron coincidencias", "paginate": { "first": "Primero", "last": "Último", "next": "Siguiente", "previous": "Anterior" }
-                },
-                drawCallback: function(settings) {
-                    var api = this.api();
-                    var searchValue = api.search();
-                    if (searchValue.length > 0 && api.rows({filter: 'applied'}).count() === 0) {
-                         $('#searchAlert').slideDown();
-                         $('#searchText').text(searchValue);
-                    } else {
-                         $('#searchAlert').slideUp();
-                    }
-                }
-            });
-
-            $('.dataTables_filter input').unbind().bind('keyup change input', function (e) {
-                var input = $(this);
-                var val = input.val();
-                var cleanVal = val.replace(/'/g, '-').replace(/´/g, '-').trim();
-                if (val !== cleanVal) input.val(cleanVal);
-                if (cleanVal == "") $('#searchAlert').slideUp();
-                table.search(cleanVal).draw();
-            });
-
-            // 4.1 Generador de Código QR Automático
-            $('#btnGenerateQR').click(function() {
-                var randomCode = 'GEN-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
-                $('#inputCode').val(randomCode);
-            });
-
-            // 4.2 Generador de Clave Corta
-            $('#btnGenerateShort').click(function() {
-                var randomShort = 'ART-' + Math.floor(100 + Math.random() * 900);
-                $('#inputShortCode').val(randomShort);
-                $('input[name="description"]').focus();
-            });
+        // 2. Alerta de Seguridad Máxima
+        Swal.fire({
+            title: titulo,
+            text: mensaje,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f5365c', // Rojo peligro
+            cancelButtonColor: '#2dce89',
+            confirmButtonText: 'Sí, borrar datos',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 3. Crear formulario invisible y enviar
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/inventory/delete-bulk';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'filter';
+                input.value = currentFilter; // Enviamos el filtro activo
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
         });
-    </script>
+    }
+
+    // Agregar alerta de éxito para el borrado masivo (en la sección de alertas existente)
+    if (alertType === 'bulk_deleted') {
+        Swal.fire({ icon: 'success', title: 'Limpieza Completada', text: 'Los registros seleccionados han sido eliminados.', confirmButtonColor: '#5e72e4', timer: 3000 });
+        window.history.replaceState(null, null, window.location.pathname);
+    }
+
+    if (alertType === 'stock_updated') {
+        Swal.fire({ icon: 'success', title: 'Stock Actualizado', text: 'Las cantidades han sido sumadas al inventario.', confirmButtonColor: '#2dce89', timer: 3000 });
+        window.history.replaceState(null, null, window.location.pathname);
+    }
+
+  </script>
+
 </body>
 </html>

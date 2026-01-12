@@ -1,177 +1,371 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <%- include('partials/head') %>
+  <%- include('partials/head') %>
+  <style>
+      /* --- ESTILOS DE TARJETAS --- */
+      .cursor-pointer {
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 2px solid transparent !important;
+      }
+      .cursor-pointer:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+      }
+
+      /* Estado Activo para PESTAÑAS */
+      .active-tab-warning {
+          border-color: #fb6340 !important;
+          background-color: #fff3cd !important;
+      }
+      .active-tab-success {
+          border-color: #2dce89 !important;
+          background-color: #dffff5 !important;
+      }
+      
+      /* --- PAGINACIÓN PREMIUM (Estilo Empleados/Inventario) --- */
+      .dataTables_wrapper .page-item .page-link {
+          border-radius: 8px !important;
+          margin: 0 3px;
+          border: 1px solid #dee2e6;
+          color: #5e72e4;
+          width: auto !important;
+          min-width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 15px;
+          font-weight: 600;
+          font-size: 0.85rem;
+      }
+      .dataTables_wrapper .page-item:not(.previous):not(.next) .page-link {
+          border-radius: 50% !important;
+          width: 36px !important;
+          padding: 0 !important;
+      }
+      .dataTables_wrapper .page-item.active .page-link {
+          background-color: #5e72e4 !important;
+          border-color: #5e72e4 !important;
+          color: white;
+          box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11);
+      }
+      .dataTables_wrapper .dataTables_paginate {
+          margin-top: 1rem;
+      }
+
+      /* Ajuste Inputs Tabla */
+      .dataTables_wrapper .dataTables_filter input {
+          border: 1px solid #d2d6da;
+          border-radius: 0.5rem;
+          padding: 0.4rem;
+      }
+  </style>
 </head>
 
-<body id="page-top">
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0"
+       style="background-image: url('/assets/img/loans-cover.jpg'); background-size: cover; background-position: center center;">
+      <span class="mask bg-gradient-success opacity-6"></span>
+  </div>
 
-    <div id="wrapper">
+  <%- include('partials/sidebar', { page: 'loans' }) %>
 
-        <%- include('partials/sidebar', { page: 'loans' }) %>
+  <main class="main-content position-relative border-radius-lg ">
+    <%- include('partials/navbar', { page: 'Préstamos' }) %>
 
-        <div id="content-wrapper" class="d-flex flex-column">
-            <div id="content">
+    <div class="container-fluid py-4">
 
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
-                        <i class="fa fa-bars"></i>
-                    </button>
-                    <h1 class="h3 mb-0 text-gray-800">Control de Préstamos</h1>
-                </nav>
-
-                <div class="container-fluid">
-
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header pb-0">
+                <h6 class="mb-0"><i class="fas fa-hand-holding text-primary me-2"></i> Registrar Salida de Material</h6>
+            </div>
+            <div class="card-body">
+                <form action="/loans/add" method="POST">
                     <div class="row">
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card border-left-warning shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                                Herramientas Prestadas</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= loans.length %></div>
-                                        </div>
-                                        <div class="col-auto">
-                                            <i class="fas fa-tools fa-2x text-gray-300"></i>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div class="col-md-5">
+                            <label class="form-control-label">Empleado / Solicitante</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" name="employeeName" class="form-control" placeholder="Escanear Gafete o Escribir Nombre..." required autofocus>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="row">
-                        
-                        <div class="col-lg-5">
-                            <div class="card shadow mb-4 border-bottom-primary">
-                                <div class="card-header py-3 bg-primary">
-                                    <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-hand-holding mr-2"></i>Registrar Salida</h6>
-                                </div>
-                                <div class="card-body">
-                                    <form action="/loans/add" method="POST">
-                                        
-                                        <% if (typeof error !== 'undefined' && error) { %>
-                                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                                <%= error %>
-                                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                    <span aria-hidden="true">&times;</span>
-                                                </button>
-                                            </div>
-                                        <% } %>
-
-                                        <div class="form-group">
-                                            <label class="font-weight-bold small text-primary">EMPLEADO</label>
-                                            <div class="input-group">
-                                                <div class="input-group-prepend">
-                                                    <span class="input-group-text bg-light border-0"><i class="fas fa-user text-gray-500"></i></span>
-                                                </div>
-                                                <input type="text" name="employeeName" class="form-control bg-light border-0 small" placeholder="Nombre completo o Gafete..." required>
-                                            </div>
-                                        </div>
-
-                                        <hr>
-
-                                        <div class="form-group">
-                                            <label class="font-weight-bold small text-primary">CÓDIGO HERRAMIENTA (QR)</label>
-                                            <div class="input-group">
-                                                <div class="input-group-prepend">
-                                                    <span class="input-group-text bg-light border-0"><i class="fas fa-qrcode text-gray-500"></i></span>
-                                                </div>
-                                                <input type="text" name="productCode" class="form-control bg-light border-0 small" placeholder="Escanear..." required autofocus>
-                                            </div>
-                                        </div>
-
-                                        <button type="submit" class="btn btn-primary btn-block btn-icon-split mt-4">
-                                            <span class="icon text-white-50">
-                                                <i class="fas fa-arrow-right"></i>
-                                            </span>
-                                            <span class="text">Prestar Herramienta</span>
-                                        </button>
-                                    </form>
-                                </div>
+                        <div class="col-md-5">
+                            <label class="form-control-label">Código de Herramienta</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
+                                <input type="text" name="productCode" class="form-control" placeholder="Escanear Herramienta..." required>
                             </div>
                         </div>
-
-                        <div class="col-lg-7">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">En Resguardo (Sin devolver)</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered" width="100%" cellspacing="0">
-                                            <thead class="bg-gray-200 text-gray-900">
-                                                <tr>
-                                                    <th>Herramienta / Clave</th> <th>Responsable</th>
-                                                    <th>Fecha</th>
-                                                    <th>Hora</th> <th>Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% loans.forEach(loan => { %>
-                                                    <tr>
-                                                        <td>
-                                                            <div class="font-weight-bold text-dark"><%= loan.product ? loan.product.description : '???' %></div>
-                                                            <% if (loan.product && loan.product.short_code) { %>
-                                                                <span class="badge badge-secondary"><%= loan.product.short_code %></span>
-                                                            <% } else { %>
-                                                                <small class="text-muted">Sin clave</small>
-                                                            <% } %>
-                                                        </td>
-                                                        <td class="align-middle">
-                                                            <i class="fas fa-user-circle mr-1 text-gray-400"></i>
-                                                            <%= loan.employee ? loan.employee.name : 'Desc.' %>
-                                                        </td>
-                                                        <td class="align-middle">
-                                                            <%= new Date(loan.date_out).toLocaleDateString() %>
-                                                        </td>
-                                                        <td class="align-middle text-primary font-weight-bold">
-                                                            <%= new Date(loan.date_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
-                                                        </td>
-                                                        <td class="text-center align-middle">
-                                                            <form action="/loans/return/<%= loan.id %>" method="POST">
-                                                                <button type="submit" class="btn btn-success btn-sm btn-icon-split shadow-sm" title="Registrar Devolución">
-                                                                    <span class="icon text-white-50">
-                                                                        <i class="fas fa-undo-alt"></i>
-                                                                    </span>
-                                                                    <span class="text">Devolver</span>
-                                                                </button>
-                                                            </form>
-                                                        </td>
-                                                    </tr>
-                                                <% }) %>
-
-                                                <% if(loans.length === 0) { %>
-                                                    <tr>
-                                                        <td colspan="5" class="text-center py-4 text-gray-500">
-                                                            <i class="fas fa-check-circle fa-2x mb-2 text-gray-300"></i><br>
-                                                            No hay herramientas prestadas.
-                                                        </td>
-                                                    </tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn bg-gradient-primary w-100 mb-0">
+                                <i class="fas fa-check"></i> Prestar
+                            </button>
                         </div>
-
                     </div>
-                </div>
-                </div>
-            <footer class="sticky-footer bg-white">
-                <div class="container my-auto">
-                    <div class="copyright text-center my-auto">
-                        <span>Copyright &copy; Tu Empresa 2026</span>
+                </form>
+                <% if (typeof error !== 'undefined') { %>
+                    <div class="alert alert-danger text-white mt-3" role="alert">
+                        <strong>Error:</strong> <%= error %>
                     </div>
-                </div>
-            </footer>
-
+                <% } %>
+            </div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <%- include('partials/scripts') %>
+      <div class="row mb-4">
+        
+        <div class="col-xl-6 col-sm-6 mb-xl-0 mb-4">
+          <div class="card cursor-pointer active-tab-warning" id="cardActivos" onclick="switchTab('activos')">
+            <div class="card-body p-3">
+              <div class="row">
+                <div class="col-8">
+                  <div class="numbers">
+                    <p class="text-sm mb-0 text-uppercase font-weight-bold">En Resguardo</p>
+                    <h5 class="font-weight-bolder"><%= loans.length %> Activos</h5>
+                  </div>
+                </div>
+                <div class="col-4 text-end">
+                  <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
+                    <i class="fas fa-clock text-lg opacity-10" aria-hidden="true"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-6 col-sm-6 mb-xl-0 mb-4">
+            <div class="card cursor-pointer" id="cardHistorial" onclick="switchTab('historial')">
+              <div class="card-body p-3">
+                <div class="row">
+                  <div class="col-8">
+                    <div class="numbers">
+                      <p class="text-sm mb-0 text-uppercase font-weight-bold">Historial</p>
+                      <h5 class="font-weight-bolder">Devoluciones</h5>
+                    </div>
+                  </div>
+                  <div class="col-4 text-end">
+                    <div class="icon icon-shape bg-gradient-success shadow-success text-center rounded-circle">
+                      <i class="fas fa-history text-lg opacity-10" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+
+      <div class="tab-content" id="myTabContent">
+        
+        <div class="tab-pane fade show active" id="tab-activos">
+            <div class="card mb-4">
+                <div class="card-body px-0 pt-0 pb-2">
+                    <div class="table-responsive p-4">
+                        <table class="table align-items-center mb-0" id="tableActive">
+                            <thead>
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Herramienta</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha Salida</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Tiempo</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% loans.forEach(loan => { %>
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex flex-column justify-content-center">
+                                                <h6 class="mb-0 text-sm">
+                                                    <%= loan.Product ? loan.Product.description : (loan.backup_product || 'Item Eliminado') %>
+                                                </h6>
+                                                <p class="text-xs text-secondary mb-0">
+                                                    Clave: <%= loan.Product ? loan.Product.short_code : '--' %>
+                                                </p>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="text-secondary text-xs font-weight-bold">
+                                                <%= new Date(loan.date_out).toLocaleDateString() %> 
+                                                <br> <%= new Date(loan.date_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
+                                            </span>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <% 
+                                                const now = new Date();
+                                                const out = new Date(loan.date_out);
+                                                const diffMs = now - out;
+                                                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                                const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                            %>
+                                            <% if(diffDays > 0) { %>
+                                                <span class="badge badge-sm bg-gradient-warning">Hace <%= diffDays %> días</span>
+                                            <% } else { %>
+                                                <span class="badge badge-sm bg-gradient-success">Hace <%= diffHrs %> horas</span>
+                                            <% } %>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <button type="button" 
+                                                    class="btn btn-sm bg-gradient-success mb-0 btn-devolver"
+                                                    data-id="<%= loan.id %>"
+                                                    data-tool="<%= loan.Product ? loan.Product.description : (loan.backup_product || 'Item Eliminado') %>">
+                                                <i class="fas fa-undo me-1"></i> Devolver
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-historial">
+            <div class="card mb-4">
+                <div class="card-header pb-0">
+                    <h6>Últimas Devoluciones Realizadas</h6>
+                </div>
+                <div class="card-body px-0 pt-0 pb-2">
+                    <div class="table-responsive p-4">
+                        <table class="table align-items-center mb-0" id="tableHistory">
+                            <thead>
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Herramienta</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha Salida</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha Devolución</th>
+                                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% history.forEach(loan => { %>
+                                    <tr>
+                                        <td>
+                                            <p class="text-sm font-weight-bold mb-0">
+                                                <%= loan.Product ? loan.Product.description : (loan.backup_product || 'Item Eliminado') %>
+                                            </p>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="text-secondary text-xs">
+                                                <%= new Date(loan.date_out).toLocaleDateString() %>
+                                            </span>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="text-dark text-xs font-weight-bold">
+                                                <%= loan.date_return ? new Date(loan.date_return).toLocaleDateString() : '-' %>
+                                                <br>
+                                                <%= loan.date_return ? new Date(loan.date_return).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '' %>
+                                            </span>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <span class="badge badge-sm bg-gradient-secondary">Devuelto</span>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+      </div>
+
+      <footer class="footer pt-3">
+        <div class="container-fluid">
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <%= new Date().getFullYear() %> ATN Fabricaciones S.A. de C.V.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </main>
+  
+  <form id="formDevolucion" method="POST" style="display:none;"></form>
+
+  <%- include('partials/scripts') %>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+  <script>
+    $(document).ready(function() {
+        // --- TABLA DE ACTIVOS ---
+        $('#tableActive').DataTable({
+            language: { "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
+            "pageLength": 5, 
+            "order": [[ 1, "desc" ]],
+            "dom": '<"d-flex justify-content-between align-items-center mb-3"f>rt<"d-flex justify-content-between align-items-center mt-3"ip><"clear">',
+        });
+
+        // --- TABLA DE HISTORIAL ---
+        $('#tableHistory').DataTable({
+            language: { "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
+            "pageLength": 5,
+            "order": [[ 2, "desc" ]],
+            "dom": '<"d-flex justify-content-between align-items-center mb-3"f>rt<"d-flex justify-content-between align-items-center mt-3"ip><"clear">',
+        });
+
+        // Evento Botón Devolver
+        $(document).on('click', '.btn-devolver', function() {
+            const id = $(this).data('id');
+            const tool = $(this).data('tool');
+            confirmarDevolucion(id, tool);
+        });
+    });
+
+    function switchTab(tab) {
+        const cardActivos = document.getElementById('cardActivos');
+        const cardHistorial = document.getElementById('cardHistorial');
+        const tabActivos = document.getElementById('tab-activos');
+        const tabHistorial = document.getElementById('tab-historial');
+
+        cardActivos.classList.remove('active-tab-warning');
+        cardHistorial.classList.remove('active-tab-success');
+        tabActivos.classList.remove('show', 'active');
+        tabHistorial.classList.remove('show', 'active');
+
+        if (tab === 'activos') {
+            cardActivos.classList.add('active-tab-warning');
+            tabActivos.classList.add('show', 'active');
+        } else {
+            cardHistorial.classList.add('active-tab-success');
+            tabHistorial.classList.add('show', 'active');
+        }
+    }
+
+    function confirmarDevolucion(id, herramienta) {
+        Swal.fire({
+            title: '¿Confirmar Devolución?',
+            html: `Se registrará el regreso de:<br><b>${herramienta}</b>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2dce89',
+            cancelButtonColor: '#f5365c',
+            confirmButtonText: 'Sí, registrar regreso',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('formDevolucion');
+                form.action = '/loans/return/' + id;
+                form.submit();
+            }
+        })
+    }
+  </script>
 
 </body>
 </html>

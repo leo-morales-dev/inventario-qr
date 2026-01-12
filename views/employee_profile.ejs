@@ -1,110 +1,299 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <%- include('partials/head') %>
-    <style>
-        /* Estilo simple para el gafete al imprimir */
-        @media print {
-            body * { visibility: hidden; }
-            #badge-section, #badge-section * { visibility: visible; }
-            #badge-section { position: absolute; left: 0; top: 0; width: 100%; }
-        }
-    </style>
+  <%- include('partials/head') %>
+  <style>
+      /* PAGINACIÓN */
+      .dataTables_wrapper .page-item .page-link {
+          border-radius: 8px !important;
+          margin: 0 3px;
+          border: 1px solid #dee2e6;
+          color: #5e72e4;
+          width: auto !important;
+          min-width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 15px;
+          font-weight: 600;
+          font-size: 0.85rem;
+      }
+      .dataTables_wrapper .page-item:not(.previous):not(.next) .page-link {
+          border-radius: 50% !important;
+          width: 36px !important;
+          padding: 0 !important;
+      }
+      .dataTables_wrapper .page-item.active .page-link {
+          background-color: #5e72e4 !important;
+          border-color: #5e72e4 !important;
+          color: white;
+          box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11);
+      }
+      /* INPUT BUSCADOR */
+      .dataTables_wrapper .dataTables_filter input {
+          border: 1px solid #d2d6da;
+          border-radius: 0.5rem;
+          padding: 0.4rem 0.8rem;
+          margin-left: 0.5rem;
+      }
+  </style>
 </head>
 
-<body id="page-top">
-    <div id="wrapper">
-        <%- include('partials/sidebar', { page: 'employees' }) %>
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0"
+       style="background-image: url('/assets/img/employees-cover.jpg'); background-size: cover; background-position: center center;">
+      <span class="mask bg-gradient-primary opacity-6"></span>
+  </div>
 
-        <div id="content-wrapper" class="d-flex flex-column">
-            <div id="content">
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
-                    <a href="/employees" class="btn btn-light btn-icon-split btn-sm">
-                        <span class="icon text-gray-600"><i class="fas fa-arrow-left"></i></span>
-                        <span class="text">Volver</span>
-                    </a>
-                </nav>
+  <%- include('partials/sidebar', { page: 'employees' }) %>
 
-                <div class="container-fluid">
+  <main class="main-content position-relative border-radius-lg ">
+    <%- include('partials/navbar', { page: 'Perfil de Empleado' }) %>
 
-                    <div class="row">
-                        <div class="col-lg-4">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Credencial de Empleado</h6></div>
-                                <div class="card-body text-center" id="badge-section">
-                                    <div style="border: 2px solid #4e73df; border-radius: 10px; padding: 20px; max-width: 300px; margin: 0 auto;">
-                                        <h5 class="text-uppercase font-weight-bold text-dark mb-1"><%= employee.name %></h5>
-                                        <p class="text-muted small">Personal Autorizado</p>
-                                        
-                                        <img src="<%= qrImage %>" class="img-fluid mb-3" style="width: 150px;">
-                                        
-                                        <div class="bg-primary text-white py-1 rounded">ID: <%= employee.id %></div>
-                                    </div>
-                                    <button onclick="window.print()" class="btn btn-primary mt-4 btn-block d-print-none">
-                                        <i class="fas fa-print mr-2"></i> Imprimir Gafete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+    <div class="container-fluid py-4">
+      
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      <script>
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('alert') === 'updated') {
+              Swal.fire({ icon: 'success', title: '¡Actualizado!', text: 'Datos guardados correctamente.', timer: 3000, confirmButtonColor: '#5e72e4' });
+              window.history.replaceState(null, null, window.location.pathname);
+          }
+      </script>
 
-                        <div class="col-lg-8">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3 bg-danger">
-                                    <h6 class="m-0 font-weight-bold text-white">⚠️ Herramientas en su poder (Activas)</h6>
-                                </div>
-                                <div class="card-body">
-                                    <ul class="list-group mb-4">
-                                        <% const activeLoans = employee.loans.filter(l => l.status === 'prestado'); %>
-                                        <% if (activeLoans.length > 0) { %>
-                                            <% activeLoans.forEach(loan => { %>
-                                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <i class="fas fa-tools text-danger mr-2"></i>
-                                                        <strong><%= loan.product ? loan.product.description : '???' %></strong>
-                                                        <br><small class="text-muted"><%= new Date(loan.date_out).toLocaleDateString() %></small>
-                                                    </div>
-                                                    <form action="/loans/return/<%= loan.id %>" method="POST">
-                                                        <button class="btn btn-success btn-sm">Devolver</button>
-                                                    </form>
-                                                </li>
-                                            <% }) %>
-                                        <% } else { %>
-                                            <p class="text-muted text-center my-3">No tiene herramientas pendientes.</p>
-                                        <% } %>
-                                    </ul>
-                                </div>
-                            </div>
+      <div class="row">
+        
+        <div class="col-md-4">
+          <div class="card card-profile mb-4">
+            <img src="/assets/img/bg-profile2.jpg" alt="Image placeholder" class="card-img-top" style="height: 150px; object-fit: cover; object-position: center;">
+            
+            <div class="row justify-content-center">
+              <div class="col-4 col-lg-4 order-lg-2">
+                <div class="mt-n4 mt-lg-n6 mb-4 mb-lg-0">
+                  <div class="avatar avatar-xl rounded-circle bg-gradient-info text-white shadow-lg d-flex align-items-center justify-content-center mx-auto" style="width: 120px; height: 120px; font-size: 3rem; border: 4px solid white;">
+                    <%= employee.name.charAt(0) %>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="card-header text-center border-0 pt-0 pt-lg-2 pb-4 pb-lg-3">
+              <div class="d-flex justify-content-between">
+                <% if(stats.active > 0) { %>
+                    <a href="javascript:;" class="btn btn-sm btn-danger mb-0 d-none d-lg-block">Debe <%= stats.active %> items</a>
+                <% } else { %>
+                    <a href="javascript:;" class="btn btn-sm btn-success mb-0 d-none d-lg-block">Sin Deudas</a>
+                <% } %>
+                
+                <button onclick="confirmarBorradoEmpleado('<%= employee.id %>', '<%= employee.name %>')" class="btn btn-sm btn-outline-danger float-right mb-0 d-none d-lg-block" title="Eliminar Empleado">
+                    <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
 
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Historial de Uso</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                                        <table class="table table-sm table-bordered">
-                                            <thead><tr><th>Item</th><th>Fecha Salida</th><th>Estado</th></tr></thead>
-                                            <tbody>
-                                                <% employee.loans.forEach(loan => { %>
-                                                    <tr class="<%= loan.status == 'devuelto' ? 'text-muted' : '' %>">
-                                                        <td><%= loan.product ? loan.product.description : '???' %></td>
-                                                        <td><%= new Date(loan.date_out).toLocaleDateString() %></td>
-                                                        <td><%= loan.status %></td>
-                                                    </tr>
-                                                <% }) %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="card-body pt-0 pb-4">
+              <div class="row">
+                <div class="col">
+                  <div class="d-flex justify-content-center">
+                    <div class="d-grid text-center">
+                      <span class="text-lg font-weight-bolder"><%= stats.total %></span>
+                      <span class="text-sm opacity-8">Histórico</span>
                     </div>
+                    <div class="d-grid text-center mx-4">
+                      <span class="text-lg font-weight-bolder text-warning"><%= stats.active %></span>
+                      <span class="text-sm opacity-8">Activos</span>
+                    </div>
+                    <div class="d-grid text-center">
+                      <span class="text-lg font-weight-bolder text-success"><%= stats.returned %></span>
+                      <span class="text-sm opacity-8">Devueltos</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
+              <div class="text-center mt-4">
+                <h4 class="mb-1"><%= employee.name %></h4>
+                <div class="h6 font-weight-300 text-muted mb-4">
+                  <i class="fas fa-id-card me-1"></i> ID Sistema: #<%= employee.id %>
+                </div>
+
+                <div class="d-flex justify-content-center">
+                    <div class="p-2 border rounded bg-white shadow-sm" style="width: fit-content;">
+                        <img src="<%= qrCode %>" alt="QR Empleado" style="width: 120px; height: 120px; display: block;">
+                        <p class="text-xs text-muted mb-0 mt-1">Gafete Digital</p>
+                    </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-8">
+          
+          <div class="card mb-4">
+            <div class="card-header pb-0">
+              <div class="d-flex align-items-center">
+                <p class="mb-0 font-weight-bold">Editar Perfil</p>
+                <button type="submit" form="formEdit" class="btn btn-primary btn-sm ms-auto">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <form id="formEdit" action="/employees/update/<%= employee.id %>" method="POST">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label class="form-control-label">Nombre Completo</label>
+                        <input class="form-control" type="text" name="name" value="<%= employee.name %>" style="text-transform: uppercase;">
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label class="form-control-label">ID de Sistema</label>
+                        <input class="form-control" type="text" value="<%= employee.id %>" readonly>
+                      </div>
+                    </div>
+                  </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header pb-0">
+              <h6 class="mb-0">Historial de Movimientos</h6>
+            </div>
+            <div class="card-body px-0 pt-0 pb-2">
+                <div class="table-responsive px-4 pb-4 pt-0">
+                    <table class="table align-items-center mb-0" id="tableHistory">
+                        <thead>
+                            <tr>
+                                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Herramienta</th>
+                                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Estado</th>
+                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha Salida</th>
+                                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha Regreso</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                          <% history.forEach(loan => { %>
+                              <tr>
+                                  <td>
+                                      <div class="d-flex px-2 py-1">
+                                          <div class="d-flex flex-column justify-content-center">
+                                              <h6 class="mb-0 text-sm">
+                                                  <%= loan.Product ? loan.Product.description : (loan.backup_product || 'Eliminado') %>
+                                              </h6>
+                                              <p class="text-xs text-secondary mb-0">
+                                                  Cód: <%= loan.Product ? loan.Product.code : '--' %>
+                                              </p>
+                                          </div>
+                                      </div>
+                                  </td>
+                                  <td>
+                                      <% if(loan.status === 'prestado') { %>
+                                          <span class="badge badge-sm bg-gradient-warning">En Posesión</span>
+                                      <% } else if(loan.status === 'consumido') { %>
+                                          <span class="badge badge-sm bg-gradient-secondary">Consumido</span>
+                                      <% } else { %>
+                                          <span class="badge badge-sm bg-gradient-success">Devuelto</span>
+                                      <% } %>
+                                  </td>
+                                  <td class="align-middle text-center">
+                                      <span class="text-secondary text-sm font-weight-bold">
+                                          <%= new Date(loan.date_out).toLocaleDateString() %>
+                                      </span>
+                                      <br>
+                                      <span class="text-xs text-muted">
+                                          <%= new Date(loan.date_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
+                                      </span>
+                                  </td>
+                                  <td class="align-middle text-center">
+                                      <% if(loan.date_return) { %>
+                                          <span class="text-secondary text-sm font-weight-bold">
+                                              <%= new Date(loan.date_return).toLocaleDateString() %>
+                                          </span>
+                                          <br>
+                                          <span class="text-xs text-muted">
+                                              <%= new Date(loan.date_return).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
+                                          </span>
+                                      <% } else { %>
+                                          <span class="text-secondary text-xs">--</span>
+                                      <% } %>
+                                  </td>
+                              </tr>
+                          <% }) %>
+                      </tbody>
+                    </table>
                 </div>
             </div>
-            <footer class="sticky-footer bg-white"><div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu App 2025</span></div></div></footer>
+          </div>
+
         </div>
+      </div>
+      
+      <footer class="footer pt-3">
+        <div class="container-fluid">
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <%= new Date().getFullYear() %> ATN Fabricaciones S.A. de C.V.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
-    <%- include('partials/scripts') %>
+  </main>
+  
+  <form id="formDeleteEmployee" method="POST" style="display:none;"></form>
+
+  <%- include('partials/scripts') %>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+  <script>
+    $(document).ready(function() {
+        $('#tableHistory').DataTable({
+            language: { "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
+            "pageLength": 5,
+            
+            // --- NUEVA LÍNEA PARA ORDENAR ---
+            // El índice 2 corresponde a la 3ra columna (Fecha Salida)
+            // "desc" pone las fechas más nuevas primero
+            "order": [[ 2, "desc" ]], 
+            
+            "dom": '<"d-flex justify-content-end align-items-center mb-3 mt-2"f>rt<"d-flex justify-content-between align-items-center mt-3"ip><"clear">',
+        });
+    });
+
+    function confirmarBorradoEmpleado(id, nombre) {
+        Swal.fire({
+            title: '¿Eliminar a ' + nombre + '?',
+            text: "Se borrará su historial y acceso. ¡No se puede deshacer!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f5365c', // Rojo
+            cancelButtonColor: '#2dce89',  // Verde
+            confirmButtonText: 'Sí, borrar empleado',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Si confirma, enviamos el formulario
+                var form = document.getElementById('formDeleteEmployee');
+                form.action = '/employees/delete/' + id;
+                form.submit();
+            }
+        })
+    }
+  </script>
+
 </body>
 </html>

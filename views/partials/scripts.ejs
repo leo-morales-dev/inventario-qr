@@ -1,22 +1,19 @@
-<script src="/vendor/jquery/jquery.min.js"></script>
-<script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/core/popper.min.js"></script>
+<script src="/assets/js/core/bootstrap.min.js"></script>
+<script src="/assets/js/plugins/perfect-scrollbar.min.js"></script>
+<script src="/assets/js/plugins/smooth-scrollbar.min.js"></script>
+<script src="/assets/js/plugins/chartjs.min.js"></script>
 
-<script src="/vendor/jquery-easing/jquery.easing.min.js"></script>
+<script async defer src="https://buttons.github.io/buttons.js"></script>
 
-<script src="/js/sb-admin-2.min.js"></script>
+<script src="/assets/js/argon-dashboard.min.js?v=2.1.0"></script>
 
 <script>
-    $(document).ready(function() {
-        // Escuchar clics en el botón para GUARDAR el nuevo estado
-        $("#sidebarToggle, #sidebarToggleTop").on('click', function() {
-            setTimeout(function() {
-                // Revisamos cómo quedó después de la animación
-                if ($("body").hasClass("sidebar-toggled")) {
-                    localStorage.setItem("sidebarState", "closed");
-                } else {
-                    localStorage.setItem("sidebarState", "open");
-                }
-            }, 200);
-        });
-    });
+    var win = navigator.platform.indexOf('Win') > -1;
+    if (win && document.querySelector('#sidenav-scrollbar')) {
+      var options = {
+        damping: '0.5'
+      }
+      Scrollbar.init(document.querySelector('#sidenav-scrollbar'), options);
+    }
 </script>

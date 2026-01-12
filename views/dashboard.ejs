@@ -1,148 +1,322 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <%- include('partials/head') %>
+  <%- include('partials/head') %>
 </head>
 
-<body id="page-top">
-    <div id="wrapper">
-        <%- include('partials/sidebar', { page: 'dashboard' }) %>
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0"
+       style="background-image: url('/assets/img/dashboard-cover.jpg'); background-size: cover; background-position: center center;">
+    <span class="mask bg-gradient-primary opacity-6"></span>
+  </div>
+  
+  <%- include('partials/sidebar', { page: 'dashboard' }) %>
 
-        <div id="content-wrapper" class="d-flex flex-column">
-            <div id="content">
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
-                        <i class="fa fa-bars"></i>
-                    </button>
-                    <h1 class="h3 mb-0 text-gray-800">Resumen General</h1>
-                </nav>
+  <main class="main-content position-relative border-radius-lg ">
+    
+    <%- include('partials/navbar', { page: 'dashboard' }) %>
 
-                <div class="container-fluid">
-
-                    <div class="row">
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card border-left-primary shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Items</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= stats.totalProducts %></div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-cubes fa-2x text-gray-300"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card border-left-warning shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">En Préstamo</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= stats.activeLoans %></div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-hand-holding fa-2x text-gray-300"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6 mb-4">
-                            <div class="card border-left-danger shadow h-100 py-2">
-                                <div class="card-body">
-                                    <div class="row no-gutters align-items-center">
-                                        <div class="col mr-2">
-                                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Stock Bajo</div>
-                                            <div class="h5 mb-0 font-weight-bold text-gray-800"><%= stats.lowStock %></div>
-                                        </div>
-                                        <div class="col-auto"><i class="fas fa-exclamation-circle fa-2x text-gray-300"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-xl-4 col-lg-5">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                    <h6 class="m-0 font-weight-bold text-primary">Distribución de Inventario</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="chart-pie pt-4 pb-2">
-                                        <canvas id="myPieChart"></canvas>
-                                    </div>
-                                    <div class="mt-4 text-center small">
-                                        <span class="mr-2"><i class="fas fa-circle text-primary"></i> Herramientas</span>
-                                        <span class="mr-2"><i class="fas fa-circle text-success"></i> Consumibles</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-xl-8 col-lg-7">
-                            <div class="card shadow mb-4">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold text-primary">Bienvenido al Sistema</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="text-center">
-                                        <img class="img-fluid px-3 px-sm-4 mt-3 mb-4" style="width: 25rem;" src="/img/undraw_posting_photo.svg" alt="...">
-                                    </div>
-                                    <p>Desde aquí puedes gestionar todo el almacén. Usa el menú lateral para registrar entradas o escanear salidas de material.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+    <div class="container-fluid py-4">
+      
+      <div class="row">
+        
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+          <div class="card">
+            <div class="card-body p-3">
+              <div class="row">
+                <div class="col-8">
+                  <div class="numbers">
+                    <p class="text-sm mb-0 text-uppercase font-weight-bold">En Préstamo</p>
+                    <h5 class="font-weight-bolder">
+                      <%= stats.activeLoans %>
+                    </h5>
+                    <p class="mb-0 text-sm">
+                      <span class="text-danger font-weight-bolder">Activos</span> ahora
+                    </p>
+                  </div>
                 </div>
+                <div class="col-4 text-end">
+                  <div class="icon icon-shape bg-gradient-danger shadow-danger text-center rounded-circle">
+                    <i class="fas fa-hand-holding text-lg opacity-10" aria-hidden="true"></i>
+                  </div>
+                </div>
+              </div>
             </div>
-            <footer class="sticky-footer bg-white">
-                <div class="container my-auto"><div class="copyright text-center my-auto"><span>Copyright &copy; Tu App 2025</span></div></div>
-            </footer>
+          </div>
         </div>
+
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+          <div class="card">
+            <div class="card-body p-3">
+              <div class="row">
+                <div class="col-8">
+                  <div class="numbers">
+                    <p class="text-sm mb-0 text-uppercase font-weight-bold">Stock Bajo</p>
+                    <h5 class="font-weight-bolder">
+                      <%= stats.lowStock %>
+                    </h5>
+                    <p class="mb-0 text-sm">
+                      <span class="text-warning font-weight-bolder">Reponer</span> urgente
+                    </p>
+                  </div>
+                </div>
+                <div class="col-4 text-end">
+                  <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
+                    <i class="fas fa-exclamation-triangle text-lg opacity-10" aria-hidden="true"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+          <div class="card">
+            <div class="card-body p-3">
+              <div class="row">
+                <div class="col-8">
+                  <div class="numbers">
+                    <p class="text-sm mb-0 text-uppercase font-weight-bold">Total Items</p>
+                    <h5 class="font-weight-bolder">
+                      <%= stats.totalProducts %>
+                    </h5>
+                    <p class="mb-0 text-sm">
+                      <span class="text-success font-weight-bolder">Registrados</span>
+                    </p>
+                  </div>
+                </div>
+                <div class="col-4 text-end">
+                  <div class="icon icon-shape bg-gradient-success shadow-success text-center rounded-circle">
+                    <i class="fas fa-boxes text-lg opacity-10" aria-hidden="true"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-3 col-sm-6">
+          <div class="card">
+            <div class="card-body p-3">
+              <div class="row">
+                <div class="col-8">
+                  <div class="numbers">
+                    <p class="text-sm mb-0 text-uppercase font-weight-bold">Personal</p>
+                    <h5 class="font-weight-bolder">
+                      <%= stats.totalEmployees %>
+                    </h5>
+                    <p class="mb-0 text-sm">
+                      <span class="text-primary font-weight-bolder">Activos</span>
+                    </p>
+                  </div>
+                </div>
+                <div class="col-4 text-end">
+                  <div class="icon icon-shape bg-gradient-primary shadow-primary text-center rounded-circle">
+                    <i class="fas fa-user-tie text-lg opacity-10" aria-hidden="true"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-4">
+        
+        <div class="col-lg-7 mb-lg-0 mb-4">
+          <div class="card z-index-2 h-100">
+            <div class="card-header pb-0 pt-3 bg-transparent">
+              <h6 class="text-capitalize">Resumen de Inventario</h6>
+              <p class="text-sm mb-0">
+                <i class="fa fa-arrow-up text-success"></i>
+                <span class="font-weight-bold">Herramientas vs Consumibles</span>
+              </p>
+            </div>
+            <div class="card-body p-3">
+              <div class="chart">
+                <canvas id="chart-inventory" class="chart-canvas" height="300"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card h-100 p-3">
+            <div class="overflow-hidden position-relative border-radius-lg bg-cover h-100" style="background-image: url('/assets/img/card-tools.jpg');">
+              <span class="mask bg-gradient-dark"></span>
+              <div class="card-body position-relative z-index-1 d-flex flex-column h-100 p-3">
+                <h5 class="text-white font-weight-bolder mb-4 pt-2">¿Qué deseas hacer hoy?</h5>
+                
+                <a href="/loans" class="btn btn-white mb-3 text-primary font-weight-bold">
+                  <i class="fas fa-exchange-alt text-primary me-2"></i> Nuevo Préstamo / Devolución
+                </a>
+                
+                <a href="/inventory" class="btn btn-outline-white mb-3 font-weight-bold">
+                  <i class="fas fa-plus-circle text-white me-2"></i> Registrar Material Nuevo
+                </a>
+
+                <p class="text-white text-sm mt-auto mb-0">
+                  Sistema de Control Inteligente v2.0
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card mb-4">
+            <div class="card-header pb-0">
+              <h6>Últimos Movimientos (Tiempo Real)</h6>
+            </div>
+            <div class="card-body px-0 pt-0 pb-2">
+              <div class="table-responsive p-0">
+                <table class="table align-items-center mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Empleado / Herramienta</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Acción</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Estado</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% recentLoans.forEach(loan => { %>
+                      <tr>
+                        <td>
+                          <div class="d-flex px-2 py-1">
+                            <div>
+                                <div class="avatar avatar-sm me-3 bg-gradient-secondary text-white rounded-circle">
+                                    <%= loan.employee ? loan.employee.name.charAt(0) : (loan.backup_employee ? loan.backup_employee.charAt(0) : '?') %>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-column justify-content-center">
+                                <h6 class="mb-0 text-sm">
+                                    <%= loan.employee ? loan.employee.name : (loan.backup_employee || 'Desconocido') %>
+                                </h6>
+                                <p class="text-xs text-secondary mb-0">
+                                    <%= loan.product ? loan.product.description : (loan.backup_product || 'Item Histórico/Borrado') %>
+                                </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <p class="text-xs font-weight-bold mb-0">
+                            <% if(loan.status === 'prestado') { %> Salida de Almacén <% } %>
+                            <% if(loan.status === 'devuelto') { %> Retorno de Material <% } %>
+                            <% if(loan.status === 'consumido') { %> Consumo <% } %>
+                          </p>
+                        </td>
+                        <td class="align-middle text-center text-sm">
+                            <% if(loan.status === 'prestado') { %>
+                                <span class="badge badge-sm bg-gradient-warning">Pendiente</span>
+                            <% } else if(loan.status === 'consumido') { %>
+                                <span class="badge badge-sm bg-gradient-secondary">Agotado</span>
+                            <% } else { %>
+                                <span class="badge badge-sm bg-gradient-success">Devuelto</span>
+                            <% } %>
+                        </td>
+                        <td class="align-middle text-center">
+                          <span class="text-secondary text-xs font-weight-bold">
+                            <%= new Date(loan.date_out).toLocaleDateString() %>
+                          </span>
+                        </td>
+                      </tr>
+                    <% }) %>
+                    
+                    <% if(recentLoans.length === 0) { %>
+                        <tr><td colspan="4" class="text-center py-4">No hay actividad reciente.</td></tr>
+                    <% } %>
+
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer pt-3">
+        <div class="container-fluid">
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <%= new Date().getFullYear() %> ATN Fabricaciones S.A. de C.V.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
+  </main>
 
-    <%- include('partials/scripts') %>
+  <%- include('partials/scripts') %>
 
-    <script src="/vendor/chart.js/Chart.min.js"></script>
-    <script>
-        // Configuramos la gráfica con los datos que vienen del servidor
-        var ctx = document.getElementById("myPieChart");
-        var myPieChart = new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: ["Herramientas", "Consumibles"],
-            datasets: [{
-              // Usamos Number() para que el editor no marque error de sintaxis
-                data: [
-                    Number('<%= stats.totalTools %>'), 
-                    Number('<%= stats.totalConsumables %>')
-                ],
-              backgroundColor: ['#4e73df', '#1cc88a'],
-              hoverBackgroundColor: ['#2e59d9', '#17a673'],
-              hoverBorderColor: "rgba(234, 236, 244, 1)",
-            }],
+  <script>
+    var ctx1 = document.getElementById("chart-inventory").getContext("2d");
+    
+    var totalTools = Number('<%= stats.totalTools %>');
+    var totalConsumables = Number('<%= stats.totalConsumables %>');
+
+    new Chart(ctx1, {
+      type: "doughnut",
+      data: {
+        labels: ["Herramientas", "Consumibles"],
+        datasets: [{
+          label: "Cantidad",
+          weight: 9,
+          cutout: 60, 
+          tension: 0.9,
+          pointRadius: 2,
+          borderWidth: 2,
+          backgroundColor: ['#5e72e4', '#2dce89'], 
+          borderColor: ['#ffffff', '#ffffff'],     
+          hoverBackgroundColor: ['#324cdd', '#24a46d'], 
+          data: [totalTools, totalConsumables],
+          fill: false
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+                padding: 20,
+                font: {
+                    size: 12,
+                    family: "Open Sans",
+                    style: 'bold',
+                }
+            }
           },
-          options: {
-            maintainAspectRatio: false,
-            tooltips: {
-              backgroundColor: "rgb(255,255,255)",
-              bodyFontColor: "#858796",
-              borderColor: '#dddfeb',
-              borderWidth: 1,
-              xPadding: 15,
-              yPadding: 15,
-              displayColors: false,
-              caretPadding: 10,
-            },
-            legend: {
-              display: false
-            },
-            cutoutPercentage: 80,
-          },
-        });
-    </script>
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleFont: { size: 13 },
+            bodyFont: { size: 13 },
+            callbacks: {
+                label: function(context) {
+                    var label = context.label || '';
+                    var value = context.parsed;
+                    return ' ' + label + ': ' + value + ' items';
+                }
+            }
+          }
+        },
+        interaction: {
+          intersect: false,
+          mode: 'nearest',
+        },
+      },
+    });
+  </script>
+
 </body>
 </html>
