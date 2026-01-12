@@ -1,3 +1,8 @@
+/**
+ * archivo: app.js
+ * descripción: Lógica principal con corrección en importación de Excel (Suma de Stock y validación de duplicados)
+ */
+
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -6,6 +11,8 @@ const sequelize = require('./database');
 const QRCode = require('qrcode');
 const ExcelJS = require('exceljs'); // Librería para Excel
 const { Op } = require('sequelize'); // OPERADORES LOGICOS
+const multer = require('multer'); // Manejo de subida de archivos
+const upload = multer({ storage: multer.memoryStorage() }); // Guardar en memoria RAM temporalmente
 
 // Importar Modelos
 const Product = require('./models/Product');
@@ -616,6 +623,130 @@ app.post('/inventory/audit-confirm', requireLogin, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.send("Error al actualizar el stock: " + error.message);
+    }
+});
+
+// --- IMPORTACIÓN DESDE EXCEL ---
+
+// 1. Descargar Plantilla Vacía (Para que el usuario sepa cómo llenar los datos)
+app.get('/inventory/template', requireLogin, async (req, res) => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Plantilla de Carga');
+
+    // Definimos las columnas exactas que el sistema espera
+    worksheet.columns = [
+        { header: 'CÓDIGO (Obligatorio)', key: 'code', width: 25 },
+        { header: 'CLAVE CORTA (Opcional)', key: 'short_code', width: 15 },
+        { header: 'DESCRIPCIÓN', key: 'description', width: 40 },
+        { header: 'STOCK INICIAL', key: 'stock', width: 15 },
+        { header: 'TIPO (Herramienta/Consumible)', key: 'category', width: 25 }
+    ];
+
+    // Ejemplo de ayuda en la primera fila (opcional, pero útil)
+    worksheet.addRow({
+        code: 'EJ-001',
+        short_code: 'A-1',
+        description: 'Ejemplo: Martillo (Borrar esta fila)',
+        stock: 10,
+        category: 'Herramienta'
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=Plantilla_Inventario.xlsx');
+
+    await workbook.xlsx.write(res);
+    res.end();
+});
+
+// 2. Procesar el Excel subido
+app.post('/inventory/import', requireLogin, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.redirect('/inventory');
+
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+
+        const worksheet = workbook.getWorksheet(1);
+        let importados = 0;
+        let errores = 0;
+
+        // --- CAMBIO IMPORTANTE: PREPARAMOS DATOS PRIMERO ---
+        // Extraemos las filas a un array simple para poder iterarlas con 'await' (pausa) una por una.
+        const filasParaProcesar = [];
+        
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // Saltar encabezado
+            filasParaProcesar.push({ row, rowNumber });
+        });
+
+        // --- PROCESAMIENTO SECUENCIAL (UNO POR UNO) ---
+        // Usamos un bucle for...of que respeta el 'await'. 
+        // Esto evita que dos filas intenten escribirse al mismo tiempo.
+        for (const item of filasParaProcesar) {
+            const row = item.row;
+            const rowNumber = item.rowNumber;
+
+            // Lectura de celdas
+            let code = row.getCell(1).value ? row.getCell(1).value.toString() : ''; 
+            let short_code = row.getCell(2).value ? row.getCell(2).value.toString() : null;
+            let description = row.getCell(3).value ? row.getCell(3).value.toString() : '';
+            let stock = row.getCell(4).value ? parseInt(row.getCell(4).value) : 0;
+            let categoryRaw = row.getCell(5).value ? row.getCell(5).value.toString().toLowerCase() : '';
+
+            // Limpieza
+            code = limpiarCodigo(code);
+            if (!description) description = 'Sin descripción';
+            
+            // Categoría
+            let category = 'consumible'; 
+            if (categoryRaw.includes('herramienta') || categoryRaw.includes('fijo')) {
+                category = 'herramienta';
+            }
+
+            if (code) {
+                try {
+                    // 1. Buscamos (Esperamos a que la BD responda)
+                    const productoExistente = await Product.findOne({ where: { code: code } });
+
+                    if (productoExistente) {
+                        // 2. Si existe, actualizamos
+                        const stockActual = parseInt(productoExistente.stock) || 0;
+                        const stockEntrante = stock || 0;
+                        const nuevoTotal = stockActual + stockEntrante;
+
+                        console.log(`Fila ${rowNumber}: Actualizando ${code} (Stock ${stockActual} + ${stockEntrante} = ${nuevoTotal})`);
+                        
+                        await productoExistente.update({
+                            description: description, 
+                            stock: nuevoTotal, 
+                            category: category,
+                            // Solo actualizamos short_code si el del excel trae dato
+                            short_code: short_code ? short_code : productoExistente.short_code 
+                        });
+                    } else {
+                        // 3. Si no existe, creamos
+                        console.log(`Fila ${rowNumber}: Creando nuevo ${code}`);
+                        await Product.create({
+                            code, short_code, description, stock, category
+                        });
+                    }
+                    importados++;
+                } catch (error) {
+                    // Si falla, mostramos el error pero no detenemos el bucle
+                    console.error(`Error crítico en fila ${rowNumber} (Código: ${code}):`, error.message);
+                    errores++;
+                }
+            } else {
+                errores++;
+            }
+        } // Fin del bucle for
+
+        console.log(`--- Importación Finalizada: ${importados} procesados, ${errores} errores ---`);
+        res.redirect('/inventory?alert=imported');
+
+    } catch (error) {
+        console.error("Error general importando Excel:", error);
+        res.send("Error en el archivo: " + error.message);
     }
 });
 

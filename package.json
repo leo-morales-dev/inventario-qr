@@ -17,6 +17,7 @@
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-session": "^1.18.2",
+    "multer": "^2.0.2",
     "qrcode": "^1.5.4",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7"

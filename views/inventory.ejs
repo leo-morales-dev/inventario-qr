@@ -177,11 +177,33 @@
           <div class="card mb-4">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center">
               <h6 class="mb-0"><i class="fas fa-plus text-success"></i> Registrar Nuevo Item</h6>
-              
-              <a href="/inventory/audit" class="btn btn-sm bg-gradient-info mb-0">
-                  <i class="fas fa-dolly-flatbed me-1"></i> Entrada Masiva
-              </a>
+                <div class="d-flex">
+                  <a href="/inventory/audit" class="btn btn-sm bg-gradient-info mb-0 me-2">
+                      <i class="fas fa-dolly-flatbed me-1"></i> Entrada Masiva
+                  </a>
 
+                  <div class="dropdown">
+                      <button class="btn btn-sm bg-gradient-primary mb-0 dropdown-toggle" type="button" id="importMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                          <i class="fas fa-file-upload me-1"></i> Importar Excel
+                      </button>
+                      <ul class="dropdown-menu" aria-labelledby="importMenu">
+                          <li>
+                              <a class="dropdown-item" href="/inventory/template">
+                                  <i class="fas fa-download text-secondary me-2"></i> Descargar Plantilla
+                              </a>
+                          </li>
+                          <li>
+                              <a class="dropdown-item" href="javascript:;" onclick="document.getElementById('fileInput').click()">
+                                  <i class="fas fa-upload text-primary me-2"></i> Subir Archivo Lleno
+                              </a>
+                          </li>
+                      </ul>
+                  </div>
+                </div>
+
+                <form id="formImport" action="/inventory/import" method="POST" enctype="multipart/form-data" style="display: none;">
+                    <input type="file" name="file" id="fileInput" accept=".xlsx" onchange="document.getElementById('formImport').submit()">
+                </form>
             </div>
             <div class="card-body">
                 <form action="/inventory/add" method="POST">
@@ -633,6 +655,16 @@
 
     if (alertType === 'stock_updated') {
         Swal.fire({ icon: 'success', title: 'Stock Actualizado', text: 'Las cantidades han sido sumadas al inventario.', confirmButtonColor: '#2dce89', timer: 3000 });
+        window.history.replaceState(null, null, window.location.pathname);
+    }
+
+    if (alertType === 'imported') {
+        Swal.fire({ 
+            icon: 'success', 
+            title: 'Importación Exitosa', 
+            text: 'Los productos del Excel se han cargado al sistema.', 
+            confirmButtonColor: '#5e72e4' 
+        });
         window.history.replaceState(null, null, window.location.pathname);
     }
 
