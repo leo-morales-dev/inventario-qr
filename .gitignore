@@ -1,0 +1,12 @@
+# Dependencias (Se descargan con npm install)
+node_modules/
+
+# Archivos de sistema y logs
+.DS_Store
+npm-debug.log*
+
+# Variables de entorno (Por seguridad, si usas claves privadas)
+.env
+
+# Opcional: Si quieres que cada usuario empiece con base de datos limpia
+# database.sqlite
