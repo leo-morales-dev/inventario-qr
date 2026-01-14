@@ -188,7 +188,7 @@
                                                   <%= loan.Product ? loan.Product.description : (loan.backup_product || 'Eliminado') %>
                                               </h6>
                                               <p class="text-xs text-secondary mb-0">
-                                                  Cód: <%= loan.Product ? loan.Product.code : '--' %>
+                                                  Cód: <%= loan.Product ? loan.Product.code : (loan.backup_code || '--') %>
                                               </p>
                                           </div>
                                       </div>

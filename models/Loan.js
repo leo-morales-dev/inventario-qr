@@ -25,6 +25,9 @@ const Loan = sequelize.define('Loan', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    backup_code: { // <--- AGREGAR ESTA LÍNEA NUEVA
+        type: DataTypes.STRING 
+    },
     backup_employee: {
         type: DataTypes.STRING,
         allowNull: true

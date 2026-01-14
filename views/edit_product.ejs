@@ -20,7 +20,8 @@
 
     <div class="container-fluid py-4">
       <div class="row">
-        <div class="col-12 col-lg-10 mx-auto"> <div class="card shadow-lg">
+        <div class="col-12 col-lg-10 mx-auto"> 
+          <div class="card shadow-lg">
             <div class="card-header pb-0">
               <div class="d-flex align-items-center">
                 <p class="mb-0 font-weight-bold">Modificar Información</p>
@@ -34,30 +35,82 @@
               <p class="text-uppercase text-sm text-muted">Detalles del Artículo</p>
               
               <form action="/inventory/update/<%= product.id %>" method="POST">
+                
+                <input type="hidden" name="product_id" value="<%= product.id %>">
+
                 <div class="row">
                   
                   <div class="col-md-12">
                     <div class="form-group">
-                      <label class="form-control-label">Código QR / Barras</label>
+                      <label class="form-control-label">Código QR / Barras (Principal)</label>
                       <div class="input-group">
                           <input class="form-control" type="text" name="code" value="<%= product.code %>">
                           <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
                       </div>
-                      <small class="form-text text-muted">Puedes escanear el nuevo código aquí si necesitas cambiarlo.</small>
+                      <small class="form-text text-muted">Este es el código único que genera el QR.</small>
                     </div>
                   </div>
 
                   <div class="col-md-6">
+                    
                     <div class="form-group">
-                      <label class="form-control-label">Clave Corta</label>
-                      <input class="form-control" type="text" name="short_code" value="<%= product.short_code %>">
+                      <label class="form-control-label text-primary font-weight-bold">Clave Corta Principal</label>
+                      <input class="form-control font-weight-bold" type="text" 
+                             name="short_code" value="<%= product.short_code %>">
                     </div>
+
+                    <% if (product.ExtraCodes && product.ExtraCodes.length > 0) { %>
+                        
+                        <% const clavesDiferentes = product.ExtraCodes.filter(e => e.codigo_proveedor !== product.short_code); %>
+                        
+                        <% if (clavesDiferentes.length > 0) { %>
+                            <div class="card card-body border bg-gray-100 p-3 mb-3">
+                                <label class="form-control-label text-xs text-muted mb-2">
+                                    <i class="fas fa-tags"></i> Claves Adicionales (XML/Excel):
+                                </label>
+                                
+                                <% product.ExtraCodes.forEach(extra => { %>
+                                    
+                                    <% if (extra.codigo_proveedor !== product.short_code) { %>
+                                        
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="input-group input-group-sm w-100">
+                                                
+                                                <input type="hidden" name="extra_ids[]" value="<%= extra.id %>">
+                                                
+                                                <input type="text" name="extra_values[]" class="form-control" value="<%= extra.codigo_proveedor %>">
+                                                
+                                                <button class="btn btn-outline-danger mb-0" type="submit" 
+                                                        formaction="/code/delete/<%= extra.id %>"
+                                                        onclick="return confirm('¿Eliminar esta clave extra permanentemente?');"
+                                                        title="Eliminar esta clave">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+
+                                            </div>
+                                        </div>
+
+                                    <% } %>
+                                <% }) %>
+                                <small class="text-xxs text-muted fst-italic">Edita los textos y presiona "Guardar Cambios Generales" abajo.</small>
+                            </div>
+                        <% } %>
+                    <% } %>
+
                   </div>
 
                   <div class="col-md-6">
                     <div class="form-group">
                       <label class="form-control-label">Stock Actual</label>
                       <input class="form-control" type="number" name="stock" value="<%= product.stock %>" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-control-label">Tipo de Artículo</label>
+                        <select name="category" class="form-control">
+                          <option value="herramienta" <%= product.category === 'herramienta' ? 'selected' : '' %>>🔧 Herramienta (Se devuelve)</option>
+                          <option value="consumible" <%= product.category === 'consumible' ? 'selected' : '' %>>📦 Consumible (Se gasta)</option>
+                        </select>
                     </div>
                   </div>
 
@@ -68,27 +121,17 @@
                     </div>
                   </div>
 
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label class="form-control-label">Tipo de Artículo</label>
-                      <select name="category" class="form-control">
-                        <option value="herramienta" <%= product.category === 'herramienta' ? 'selected' : '' %>>🔧 Herramienta (Se devuelve)</option>
-                        <option value="consumible" <%= product.category === 'consumible' ? 'selected' : '' %>>📦 Consumible (Se gasta)</option>
-                      </select>
-                    </div>
-                  </div>
-
                 </div>
                 
                 <hr class="horizontal dark my-4">
                 
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn bg-gradient-success btn-lg">
-                        <i class="fas fa-save me-2"></i> Guardar Cambios
+                        <i class="fas fa-check-circle me-2"></i> Guardar Cambios Generales
                     </button>
                 </div>
 
-              </form>
+              </form> 
             </div>
           </div>
 
@@ -115,17 +158,28 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <script>
-    // Detector de Alertas para Edición
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('alert') === 'updated') {
+    const alertMsg = urlParams.get('alert');
+
+    if (alertMsg === 'updated') {
         Swal.fire({
             icon: 'success',
-            title: '¡Actualizado!',
-            text: 'La información del producto se guardó correctamente.',
+            title: '¡Guardado!',
+            text: 'Toda la información se actualizó correctamente.',
             confirmButtonColor: '#5e72e4',
-            timer: 3000
+            timer: 2000
         });
-        // Limpiar URL
+    } else if (alertMsg === 'deleted') {
+        Swal.fire({
+            icon: 'success',
+            title: 'Clave Eliminada',
+            text: 'La clave adicional ha sido removida.',
+            confirmButtonColor: '#f5365c',
+            timer: 2000
+        });
+    }
+    
+    if (alertMsg) {
         window.history.replaceState(null, null, window.location.pathname);
     }
   </script>

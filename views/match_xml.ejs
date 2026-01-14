@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <%- include('partials/head') %>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  
+  <style>
+      /* --- ESTILOS GENERALES --- */
+      .xml-row { transition: background-color 0.3s; }
+      .xml-row:hover { background-color: #f8f9fe; }
+      
+      /* --- TARJETA DE ACCIÓN (Minimalista) --- */
+      .action-card {
+          background-color: #fff;
+          border: 1px solid #e9ecef;
+          border-radius: 12px;
+          padding: 15px;
+          position: relative;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+      }
+      
+      /* Estado Ignorado */
+      .action-card.skipped {
+          background-color: #f6f9fc;
+          border-color: #f6f9fc;
+          opacity: 0.6;
+      }
+      .action-card.skipped .card-content { display: none; }
+      .action-card.skipped::after {
+          content: "Artículo Ignorado";
+          display: block; text-align: center; font-weight: bold; color: #8898aa; padding: 10px;
+      }
+
+      /* Botón X (Ignorar) */
+      .btn-ignore {
+          position: absolute; top: -10px; right: -10px;
+          width: 30px; height: 30px; border-radius: 50%; border: none;
+          background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+          color: #f5365c; display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: 0.2s; z-index: 10;
+      }
+      .btn-ignore:hover { background: #f5365c; color: white; transform: scale(1.1); }
+      
+      .action-card.skipped .btn-ignore {
+          background: #2dce89; color: white;
+          top: 50%; right: 15px; transform: translateY(-50%);
+      }
+      .action-card.skipped .btn-ignore i::before { content: "\f0e2"; } /* Icono Restaurar */
+
+      /* Select2 Limpio */
+      .select2-container .select2-selection--single {
+          height: 38px; border: 1px solid #d2d6da; border-radius: 0.5rem;
+      }
+      .select2-container--default .select2-selection--single .select2-selection__rendered {
+          line-height: 36px; padding-left: 12px; color: #344767;
+      }
+      .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px; }
+
+      /* Interruptor Nuevo/Vincular */
+      .mode-switch { display: flex; gap: 10px; margin-bottom: 15px; }
+      .mode-btn {
+          flex: 1; padding: 6px; border: 1px solid #dee2e6; background: #fff;
+          color: #8898aa; border-radius: 6px; font-size: 0.75rem; font-weight: bold;
+          cursor: pointer; transition: 0.2s; text-align: center;
+      }
+      .mode-btn.active {
+          background: #5e72e4; color: white; border-color: #5e72e4; box-shadow: 0 4px 6px rgba(50,50,93,0.1);
+      }
+      .mode-btn:hover:not(.active) { background: #f6f9fc; }
+
+      .hidden-section { display: none; }
+      
+      .highlight-change { animation: highlight 0.8s ease-out; }
+      @keyframes highlight { 0% { background-color: #2dce89; color: white; } 100% { background-color: white; } }
+  </style>
+</head>
+
+<body class="g-sidenav-show bg-gray-100">
+  
+  <div class="min-height-300 position-absolute w-100 top-0"
+       style="background-image: url('/assets/img/inventory-cover.jpg'); background-size: cover; background-position: center center;">
+      <span class="mask bg-gradient-primary opacity-6"></span>
+  </div>
+  
+  <%- include('partials/sidebar', { page: 'inventory' }) %>
+
+  <main class="main-content position-relative border-radius-lg ">
+    <%- include('partials/navbar', { page: 'Vinculación XML' }) %>
+
+    <div class="container-fluid py-4">
+
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card bg-white shadow-lg border-radius-lg overflow-hidden">
+            <div class="card-body p-3">
+              <div class="row align-items-center">
+                <div class="col-auto">
+                    <div class="icon icon-shape bg-gradient-info text-white rounded-circle shadow text-center">
+                        <i class="fas fa-file-invoice opacity-10"></i>
+                    </div>
+                </div>
+                <div class="col">
+                    <h5 class="text-dark mb-1">Procesando Factura</h5>
+                    <p class="text-secondary text-sm mb-0">
+                        Se detectaron <span class="badge bg-gradient-info ms-1"><%= items.length %> artículos nuevos</span>.
+                    </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <form action="/inventory/save-mapping" method="POST" id="formMapping">
+      
+      <div class="card shadow-sm mb-4 border-radius-lg">
+        <div class="card-body p-3">
+          <div class="row align-items-center justify-content-between">
+            
+            <div class="col-auto d-flex align-items-center">
+                <a href="/inventory" class="btn btn-outline-secondary btn-sm mb-0 me-4">
+                    <i class="fas fa-arrow-left me-1"></i> Regresar
+                </a>
+                
+                <div class="d-flex align-items-center">
+                    <div class="icon icon-shape icon-sm bg-gradient-success shadow text-center border-radius-md me-2">
+                        <i class="fas fa-bolt text-white opacity-10"></i>
+                    </div>
+                    <h6 class="mb-0 text-sm font-weight-bold text-dark">Acciones Rápidas</h6>
+                </div>
+            </div>
+
+            <div class="col text-end">
+                
+                <button type="button" onclick="generarTodosIDs()" class="btn bg-gradient-primary btn-sm mb-0 me-3">
+                    <i class="fas fa-qrcode me-1"></i> Generar QR Masivo
+                </button>
+
+                <span class="text-secondary text-xs mx-1">|</span>
+                <span class="text-xs font-weight-bold text-secondary me-2">TODO COMO:</span>
+
+                <button type="button" onclick="aplicarMasivo('consumible')" class="btn bg-gradient-secondary btn-sm mb-0 me-1">
+                    <i class="fas fa-box-open me-1"></i> Consumibles
+                </button>
+                
+                <button type="button" onclick="aplicarMasivo('herramienta')" class="btn bg-gradient-info btn-sm mb-0">
+                    <i class="fas fa-wrench me-1"></i> Herramientas
+                </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <div class="card mb-4">
+            <div class="card-header pb-0">
+              <h6 class="mb-0">Artículos por Vincular</h6>
+            </div>
+            <div class="card-body px-0 pt-0 pb-2">
+              <div class="table-responsive p-0">
+                <table class="table align-items-center mb-0">
+                  <thead class="bg-gray-100">
+                    <tr>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-4" style="width: 30%;">Producto (XML)</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="width: 8%;">Cant.</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-4">Decisión</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% items.forEach((item, index) => { %>
+                        <input type="hidden" name="rfc" value="<%= item.rfc %>">
+                        <input type="hidden" name="supplier_code" value="<%= item.codigo %>">
+                        <input type="hidden" name="descripcion_xml" value="<%= item.descripcion %>">
+                        <input type="hidden" name="cantidad" value="<%= item.cantidad %>">
+                        <input type="hidden" name="targetProductId" id="target_val_<%= index %>" value="NEW">
+
+                        <tr class="xml-row border-bottom">
+                            <td class="align-top ps-4 py-4">
+                                <div class="d-flex flex-column">
+                                    <span class="badge badge-sm bg-gradient-light text-dark border mb-2" style="width: fit-content;">
+                                        <i class="fas fa-barcode me-1"></i> <%= item.codigo %>
+                                    </span>
+                                    <h6 class="mb-1 text-sm text-dark"><%= item.descripcion %></h6>
+                                    <p class="text-xs text-secondary mb-0">RFC: <strong><%= item.rfc %></strong></p>
+                                </div>
+                            </td>
+
+                            <td class="align-top text-center py-4">
+                                <span class="badge badge-lg bg-gradient-success rounded-pill">+<%= item.cantidad %></span>
+                            </td>
+
+                            <td class="align-top px-4 py-3">
+                                
+                                <div id="card_<%= index %>" class="action-card">
+                                    
+                                    <button type="button" class="btn-ignore shadow-sm" onclick="toggleIgnore(<%= index %>)" title="Ignorar / Restaurar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+
+                                    <div class="card-content">
+                                        
+                                        <div class="mode-switch">
+                                            <div id="btn_new_<%= index %>" class="mode-btn active" onclick="setMode(<%= index %>, 'NEW')">
+                                                <i class="fas fa-plus me-1"></i> CREAR NUEVO
+                                            </div>
+                                            <div id="btn_link_<%= index %>" class="mode-btn" onclick="setMode(<%= index %>, 'LINK')">
+                                                <i class="fas fa-link me-1"></i> VINCULAR EXISTENTE
+                                            </div>
+                                        </div>
+
+                                        <div id="form_new_<%= index %>">
+                                            <div class="row g-2">
+                                                <div class="col-md-4">
+                                                    <label class="text-xxs font-weight-bold text-muted mb-0">QR / ID</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="text" name="internal_id" id="internal_id_<%= index %>" 
+                                                               class="form-control qr-input" placeholder="Ej: ART-001" required>
+                                                        <button class="btn btn-outline-primary mb-0 px-2" type="button" onclick="generarID(<%= index %>)">
+                                                            <i class="fas fa-magic"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="text-xxs font-weight-bold text-muted mb-0">Tipo</label>
+                                                    <select name="category_xml" class="form-control form-control-sm category-selector">
+                                                        <option value="consumible">Consumible</option>
+                                                        <option value="herramienta">Herramienta</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="text-xxs font-weight-bold text-muted mb-0">Nombre</label>
+                                                    <input type="text" name="custom_name" class="form-control form-control-sm" 
+                                                           placeholder="Opcional">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="form_link_<%= index %>" class="hidden-section">
+                                            <label class="text-xxs font-weight-bold text-muted mb-1">Buscar Producto:</label>
+                                            
+                                            <div style="max-width: 98%;">
+                                                <select class="form-control select-searchable" data-index="<%= index %>">
+                                                    <option value="" selected disabled>Escriba para buscar...</option>
+                                                    <% products.forEach(p => { %>
+                                                        <option value="<%= p.id %>">
+                                                            <%= p.code %> - <%= p.description %>
+                                                        </option>
+                                                    <% }) %>
+                                                </select>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </td>
+                        </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-4">
+          <div class="col-12 d-flex justify-content-end">
+              <a href="/inventory" class="btn btn-white me-3 border">Cancelar</a>
+              <button type="submit" class="btn bg-gradient-primary btn-lg shadow-primary">
+                  <i class="fas fa-save me-2"></i> Confirmar y Guardar
+              </button>
+          </div>
+      </div>
+
+      </form>
+
+      <footer class="footer pt-3">
+        <div class="container-fluid">
+          <div class="row align-items-center justify-content-lg-between">
+            <div class="col-lg-6 mb-lg-0 mb-4">
+              <div class="copyright text-center text-sm text-muted text-lg-start">
+                © <%= new Date().getFullYear() %> ATN Fabricaciones.
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </main>
+
+  <%- include('partials/scripts') %>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <script>
+      $(document).ready(function() {
+          $('.select-searchable').select2({
+              placeholder: "Buscar...", allowClear: true, width: '100%',
+              language: { noResults: () => "No encontrado", searching: () => "Buscando..." }
+          });
+
+          $('.select-searchable').on('select2:select', function(e) {
+              const index = $(this).data('index');
+              document.getElementById('target_val_' + index).value = $(this).val();
+          });
+      });
+
+      function toggleIgnore(index) {
+          const card = document.getElementById('card_' + index);
+          const inputHidden = document.getElementById('target_val_' + index);
+          const inputQR = document.getElementById('internal_id_' + index);
+          
+          if (card.classList.contains('skipped')) {
+              card.classList.remove('skipped');
+              setMode(index, 'NEW');
+          } else {
+              card.classList.add('skipped');
+              inputHidden.value = 'SKIP';
+              inputQR.required = false;
+          }
+      }
+
+      function setMode(index, mode) {
+          const btnNew = document.getElementById('btn_new_' + index);
+          const btnLink = document.getElementById('btn_link_' + index);
+          const formNew = document.getElementById('form_new_' + index);
+          const formLink = document.getElementById('form_link_' + index);
+          
+          const inputHidden = document.getElementById('target_val_' + index);
+          const inputQR = document.getElementById('internal_id_' + index);
+
+          btnNew.classList.remove('active');
+          btnLink.classList.remove('active');
+          formNew.style.display = 'none';
+          formLink.style.display = 'none';
+
+          if (mode === 'NEW') {
+              btnNew.classList.add('active');
+              formNew.style.display = 'block';
+              inputHidden.value = 'NEW';
+              inputQR.required = true;
+          } else {
+              btnLink.classList.add('active');
+              formLink.style.display = 'block';
+              const selectVal = $(`.select-searchable[data-index="${index}"]`).val();
+              inputHidden.value = selectVal ? selectVal : 'NEW';
+              inputQR.required = false;
+          }
+      }
+
+      function generarID(index) {
+          const field = document.getElementById('internal_id_' + index);
+          const random = Math.floor(1000 + Math.random() * 9000);
+          field.value = 'ART-' + random;
+          field.classList.remove('highlight-change');
+          void field.offsetWidth;
+          field.classList.add('highlight-change');
+      }
+
+      function generarTodosIDs() {
+          const inputs = document.querySelectorAll('.qr-input');
+          let count = 0;
+          inputs.forEach(input => {
+              if (!input.closest('.skipped')) {
+                  const random = Math.floor(1000 + Math.random() * 9000);
+                  input.value = 'ART-' + random;
+                  count++;
+              }
+          });
+          Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Generado', text: `${count} códigos asignados.` });
+      }
+
+      function aplicarMasivo(tipo) {
+          const selectors = document.querySelectorAll('.category-selector');
+          selectors.forEach(s => s.value = tipo);
+          const label = tipo === 'consumible' ? 'Consumibles' : 'Herramientas';
+          Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Asignado', text: `Todo marcado como ${label}` });
+      }
+  </script>
+
+</body>
+</html>

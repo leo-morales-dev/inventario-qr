@@ -1,6 +1,6 @@
 /**
  * archivo: app.js
- * descripción: Lógica principal con corrección en importación de Excel (Suma de Stock y validación de duplicados)
+ * Versión: MAESTRA FINAL + HISTORIAL DE MOVIMIENTOS
  */
 
 const express = require('express');
@@ -9,16 +9,23 @@ const path = require('path');
 const session = require('express-session');
 const sequelize = require('./database'); 
 const QRCode = require('qrcode');
-const ExcelJS = require('exceljs'); // Librería para Excel
-const { Op } = require('sequelize'); // OPERADORES LOGICOS
-const multer = require('multer'); // Manejo de subida de archivos
-const upload = multer({ storage: multer.memoryStorage() }); // Guardar en memoria RAM temporalmente
+const ExcelJS = require('exceljs'); 
+const { Op } = require('sequelize'); 
+const multer = require('multer'); 
+const upload = multer({ storage: multer.memoryStorage() }); 
+
+// --- IMPORTAR LIBRERÍA XML ---
+const xml2js = require('xml2js'); 
 
 // Importar Modelos
 const Product = require('./models/Product');
 const Employee = require('./models/Employee');
 const Loan = require('./models/Loan');
 const User = require('./models/User');
+// --- NUEVOS MODELOS ---
+const SupplierCode = require('./models/SupplierCode'); 
+const DamageLog = require('./models/DamageLog'); 
+const InventoryLog = require('./models/InventoryLog'); // <--- 1. NUEVO MODELO HISTORIAL
 
 // Configuración básica
 app.set('view engine', 'ejs');
@@ -30,7 +37,7 @@ app.use(session({
     secret: 'secreto_super_seguro_tooltrack', 
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 3600000 } // 1 hora
+    cookie: { maxAge: 3600000 } 
 }));
 
 // --- RELACIONES DE BASE DE DATOS ---
@@ -40,8 +47,31 @@ Loan.belongsTo(Employee, { foreignKey: 'employeeId' });
 Product.hasMany(Loan, { foreignKey: 'productId' });
 Loan.belongsTo(Product, { foreignKey: 'productId' });
 
+// Relación Claves Proveedor
+if (!SupplierCode.associations['Product']) {
+    SupplierCode.belongsTo(Product, { foreignKey: 'productId' });
+}
+if (!Product.associations['ExtraCodes']) {
+    Product.hasMany(SupplierCode, { foreignKey: 'productId', as: 'ExtraCodes' }); 
+}
+
+// Relación Producto - Daños
+if (!Product.associations['DamageLogs']) {
+    Product.hasMany(DamageLog, { foreignKey: 'productId' });
+}
+if (!DamageLog.associations['Product']) {
+    DamageLog.belongsTo(Product, { foreignKey: 'productId', as: 'Product' });
+}
+
+// Relación Producto - Historial (NUEVO)
+if (!Product.associations['History']) {
+    Product.hasMany(InventoryLog, { foreignKey: 'productId', as: 'History' });
+}
+if (!InventoryLog.associations['Product']) {
+    InventoryLog.belongsTo(Product, { foreignKey: 'productId', as: 'Product' });
+}
+
 // --- SINCRONIZACIÓN Y ADMIN ---
-// ¡IMPORTANTE! Usamos { alter: true } para proteger los datos
 sequelize.sync({ alter: true })
     .then(async () => {
         console.log("--- Base de Datos Sincronizada ---");
@@ -75,11 +105,24 @@ function limpiarCodigo(codigo) {
     return codigo.toUpperCase().replace(/'/g, '-').replace(/´/g, '-').trim();
 }
 
+// --- FUNCIÓN HELPER PARA REGISTRAR HISTORIAL (NUEVO) ---
+async function registrarLog(productId, action, description, user = 'Administrador') {
+    try {
+        await InventoryLog.create({
+            productId,
+            action,
+            description,
+            user
+        });
+    } catch (e) {
+        console.error("Error guardando log:", e);
+    }
+}
+
 // ==========================================
 // RUTAS
 // ==========================================
 
-// --- LOGIN / LOGOUT ---
 app.get('/login', (req, res) => {
     if (req.session.userId) return res.redirect('/');
     res.render('login', { error: null });
@@ -140,27 +183,97 @@ app.get('/', requireLogin, async (req, res) => {
     }
 });
 
+// ==========================================
+// ENTRADA MASIVA (MODO TEXTO / VUELCO)
+// ==========================================
+
+// 1. Mostrar pantalla
+app.get('/inventory/audit', requireLogin, (req, res) => {
+    res.render('audit', { page: 'inventory' });
+});
+
+// 2. Procesar datos del cuadro de texto
+app.post('/inventory/audit-process', requireLogin, async (req, res) => {
+    try {
+        const rawData = req.body.rawData || '';
+        // Separar por líneas, limpiar espacios y quitar vacíos
+        const codes = rawData.split(/\r?\n/).map(c => c.trim()).filter(c => c !== '');
+        
+        // Contar ocurrencias (Frecuencia de cada código)
+        const counts = {};
+        codes.forEach(c => { counts[c] = (counts[c] || 0) + 1; });
+        
+        const uniqueCodes = Object.keys(counts);
+        
+        // Buscar productos en la BD
+        const products = await Product.findAll({
+            where: {
+                [Op.or]: [
+                    { code: uniqueCodes },
+                    { short_code: uniqueCodes }
+                ]
+            }
+        });
+        
+        // Mapear resultados para la vista
+        const scannedItems = uniqueCodes.map(code => {
+            const product = products.find(p => p.code === code || p.short_code === code);
+            return {
+                code: code,
+                count: counts[code],
+                product: product || null
+            };
+        });
+        
+        const found = scannedItems.filter(i => i.product).length;
+        const unknown = scannedItems.filter(i => !i.product).length;
+        
+        res.render('audit', { 
+            page: 'inventory',
+            scannedItems,
+            stats: { found, unknown }
+        });
+        
+    } catch (e) { res.send("Error procesando datos: " + e.message); }
+});
+
+// 3. Confirmar y Guardar en BD
+app.post('/inventory/audit-confirm', requireLogin, async (req, res) => {
+    try {
+        const items = JSON.parse(req.body.validItems);
+        
+        for (const item of items) {
+            if (item.product) {
+                const prod = await Product.findByPk(item.product.id);
+                if (prod) {
+                    await prod.increment('stock', { by: item.count });
+                    // LOG
+                    await registrarLog(prod.id, 'ENTRADA MASIVA', `Se sumaron ${item.count} unidades (Carga Rápida).`);
+                }
+            }
+        }
+        res.redirect('/inventory?alert=stock_updated');
+    } catch (e) { res.send("Error guardando: " + e.message); }
+});
+
 // --- INVENTARIO ---
 
-// 1. Exportar Excel (Inventario INTELIGENTE)
 app.get('/inventory/export', requireLogin, async (req, res) => {
     try {
         const filter = req.query.filter || 'all';
-        let products = await Product.findAll();
+        let products = await Product.findAll({
+            include: [{ model: SupplierCode, as: 'ExtraCodes' }]
+        });
 
-        if (filter === 'tools') {
-            products = products.filter(p => p.category === 'herramienta');
-        } else if (filter === 'consumables') {
-            products = products.filter(p => p.category === 'consumible');
-        } else if (filter === 'low') {
-            products = products.filter(p => p.stock < 5);
-        }
+        if (filter === 'tools') products = products.filter(p => p.category === 'herramienta');
+        else if (filter === 'consumables') products = products.filter(p => p.category === 'consumible');
+        else if (filter === 'low') products = products.filter(p => p.stock < 5);
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Inventario');
 
         worksheet.columns = [
-            { header: 'CLAVE', key: 'short_code', width: 15 },
+            { header: 'CLAVES (Todas)', key: 'short_code', width: 25 }, 
             { header: 'CODIGO', key: 'code', width: 25 },
             { header: 'DESCRIPCIÓN', key: 'description', width: 40 },
             { header: 'EXISTENCIA', key: 'stock', width: 15 },
@@ -171,8 +284,15 @@ app.get('/inventory/export', requireLogin, async (req, res) => {
         worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
         products.forEach(product => {
+            let claves = [];
+            if (product.short_code && product.short_code !== '--') claves.push(product.short_code);
+            if (product.ExtraCodes && product.ExtraCodes.length > 0) {
+                product.ExtraCodes.forEach(ec => claves.push(ec.codigo_proveedor));
+            }
+            let clavesString = [...new Set(claves)].join(', ');
+
             worksheet.addRow({
-                short_code: product.short_code,
+                short_code: clavesString,
                 code: product.code,
                 description: product.description,
                 stock: product.stock,
@@ -181,13 +301,7 @@ app.get('/inventory/export', requireLogin, async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        
-        let filename = 'Inventario_General.xlsx';
-        if(filter === 'tools') filename = 'Inventario_Herramientas.xlsx';
-        if(filter === 'consumables') filename = 'Inventario_Consumibles.xlsx';
-        if(filter === 'low') filename = 'Inventario_StockBajo.xlsx';
-
-        res.setHeader('Content-Disposition', 'attachment; filename=' + filename);
+        res.setHeader('Content-Disposition', 'attachment; filename=Inventario_General.xlsx');
         await workbook.xlsx.write(res);
         res.end();
 
@@ -199,39 +313,88 @@ app.get('/inventory/export', requireLogin, async (req, res) => {
 
 app.get('/inventory', requireLogin, async (req, res) => {
     try {
-        const products = await Product.findAll(); 
+        const products = await Product.findAll({
+            include: [{ model: SupplierCode, as: 'ExtraCodes' }],
+            order: [['createdAt', 'DESC']]
+        }); 
         res.render('inventory', { products: products, page: 'inventory' }); 
     } catch (error) {
-        res.send("Error al cargar inventario");
+        res.send("Error al cargar inventario: " + error.message);
     }
 });
 
+// --- ALTA MANUAL CON LOG ---
 app.post('/inventory/add', requireLogin, async (req, res) => {
     try {
         const { short_code, description, stock, category } = req.body;
         const code = limpiarCodigo(req.body.code); 
-        await Product.create({ code, short_code, description, stock, category });
+        
+        const newProduct = await Product.create({ code, short_code, description, stock, category });
+        
+        // LOG
+        await registrarLog(newProduct.id, 'ALTA MANUAL', `Producto creado con stock inicial: ${stock}`);
+
         res.redirect('/inventory?alert=created');
     } catch (error) {
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.redirect('/inventory?alert=duplicate');
+        }
         res.send("Error al guardar: " + error.message);
     }
 });
 
 app.get('/inventory/edit/:id', requireLogin, async (req, res) => {
     try {
-        const product = await Product.findByPk(req.params.id);
+        const product = await Product.findByPk(req.params.id, {
+            include: [{ model: SupplierCode, as: 'ExtraCodes' }]
+        });
+        
         if (!product) return res.redirect('/inventory');
         res.render('edit_product', { product: product, page: 'inventory' });
     } catch (error) {
+        console.error(error);
         res.redirect('/inventory');
     }
 });
 
+// --- EDICIÓN CON LOG ---
 app.post('/inventory/update/:id', requireLogin, async (req, res) => {
     try {
-        const { short_code, description, stock, category } = req.body;
+        const { short_code, description, stock, category, extra_ids, extra_values } = req.body;
         const code = limpiarCodigo(req.body.code); 
-        await Product.update({ code, short_code, description, stock, category }, { where: { id: req.params.id } });
+        
+        const currentProduct = await Product.findByPk(req.params.id);
+        const oldShortCode = currentProduct.short_code;
+
+        await Product.update(
+            { code, short_code, description, stock, category }, 
+            { where: { id: req.params.id } }
+        );
+        
+        // LOG
+        await registrarLog(req.params.id, 'EDICIÓN', 'Se actualizaron los detalles del producto.');
+
+        if (short_code && oldShortCode && short_code !== oldShortCode) {
+            await SupplierCode.update(
+                { codigo_proveedor: short_code }, 
+                { where: { productId: req.params.id, codigo_proveedor: oldShortCode } }
+            );
+        }
+
+        if (extra_ids && extra_values) {
+            const ids = Array.isArray(extra_ids) ? extra_ids : [extra_ids];
+            const vals = Array.isArray(extra_values) ? extra_values : [extra_values];
+
+            for (let i = 0; i < ids.length; i++) {
+                if(vals[i] && vals[i].trim() !== '') {
+                     await SupplierCode.update(
+                        { codigo_proveedor: vals[i] },
+                        { where: { id: ids[i] } }
+                    );
+                }
+            }
+        }
+
         res.redirect('/inventory/edit/' + req.params.id + '?alert=updated');
     } catch (error) {
         res.send("Error al actualizar: " + error.message);
@@ -240,34 +403,45 @@ app.post('/inventory/update/:id', requireLogin, async (req, res) => {
 
 app.post('/inventory/delete/:id', requireLogin, async (req, res) => {
     try {
-        await Product.destroy({ where: { id: req.params.id } });
+        const productId = req.params.id;
+        // Primero borramos historial para evitar constraint error
+        await SupplierCode.destroy({ where: { productId: productId } });
+        await DamageLog.destroy({ where: { productId: productId } });
+        await InventoryLog.destroy({ where: { productId: productId } });
+        
+        await Product.destroy({ where: { id: productId } });
         res.redirect('/inventory?alert=deleted');
     } catch (error) {
         res.send("Error al eliminar producto");
     }
 });
 
-// BORRADO MASIVO INTELIGENTE
 app.post('/inventory/delete-bulk', requireLogin, async (req, res) => {
     try {
         const { filter } = req.body; 
+        
         let whereClause = {};
+        if (filter === 'tools') whereClause = { category: 'herramienta' };
+        else if (filter === 'consumables') whereClause = { category: 'consumible' };
+        else if (filter === 'low') whereClause = { stock: { [Op.lt]: 5 } };
+        else if (filter === 'all') whereClause = {};
+        
+        const productsToDelete = await Product.findAll({ 
+            where: whereClause,
+            attributes: ['id'] 
+        });
 
-        if (filter === 'tools') {
-            whereClause = { category: 'herramienta' };
-        } else if (filter === 'consumables') {
-            whereClause = { category: 'consumible' };
-        } else if (filter === 'low') {
-            whereClause = { stock: { [Op.lt]: 5 } };
-        } else if (filter === 'all') {
-            whereClause = {};
-        } else {
-            return res.redirect('/inventory');
+        const productIds = productsToDelete.map(p => p.id);
+
+        if (productIds.length > 0) {
+            await SupplierCode.destroy({ where: { productId: productIds } });
+            await Loan.destroy({ where: { productId: productIds } });
+            await DamageLog.destroy({ where: { productId: productIds } });
+            await InventoryLog.destroy({ where: { productId: productIds } });
+            await Product.destroy({ where: { id: productIds } });
         }
 
-        await Product.destroy({ where: whereClause });
         res.redirect('/inventory?alert=bulk_deleted');
-
     } catch (error) {
         console.error(error);
         res.send("Error al borrar datos masivos: " + error.message);
@@ -305,452 +479,462 @@ app.get('/inventory/qr/:id', requireLogin, async (req, res) => {
     }
 });
 
-// --- PRÉSTAMOS ---
+// ==========================================
+// IMPORTACIÓN XML INTELIGENTE
+// ==========================================
 
-app.get('/loans/export', requireLogin, async (req, res) => {
+app.post('/inventory/import-xml', requireLogin, upload.single('xmlFile'), async (req, res) => {
     try {
-        const loans = await Loan.findAll({
-            include: [Product, Employee],
-            order: [['date_out', 'DESC']]
-        });
+        if (!req.file) return res.redirect('/inventory');
 
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Control de Herramienta');
+        const parser = new xml2js.Parser({ explicitArray: false, ignoreAttrs: false });
+        const xmlData = await parser.parseStringPromise(req.file.buffer.toString());
 
-        worksheet.mergeCells('A1:F1');
-        const titleCell = worksheet.getCell('A1');
-        titleCell.value = 'CONTROL DE HERRAMIENTA';
-        titleCell.font = { bold: true, size: 14 };
-        titleCell.alignment = { horizontal: 'center' };
+        const comprobante = xmlData['cfdi:Comprobante'];
+        const emisor = comprobante['cfdi:Emisor'];
+        const rfcProveedor = emisor['$']['Rfc'];
+        const conceptosBlock = comprobante['cfdi:Conceptos']['cfdi:Concepto'];
+        
+        const listaConceptos = Array.isArray(conceptosBlock) ? conceptosBlock : [conceptosBlock];
+        const productosDesconocidos = [];
 
-        worksheet.getRow(3).values = ['NOMBRE', 'DESCRIPCION', 'REGISTRO (CÓDIGO)', 'FECHA SALIDA', 'FECHA ENTREGA', 'ESTATUS'];
-        worksheet.getRow(3).font = { bold: true };
-        worksheet.columns = [
-            { key: 'name', width: 30 },
-            { key: 'desc', width: 30 },
-            { key: 'code', width: 20 },
-            { key: 'out', width: 20 },
-            { key: 'return', width: 20 },
-            { key: 'status', width: 15 }
-        ];
+        for (const item of listaConceptos) {
+            const codigoProv = item['$']['NoIdentificacion'] || item['$']['ClaveProdServ'];
+            const descripcionProv = item['$']['Descripcion'];
+            const cantidad = parseFloat(item['$']['Cantidad']);
 
-        loans.forEach(loan => {
-            const row = worksheet.addRow({
-                name: loan.employee ? loan.employee.name : 'Desconocido',
-                desc: loan.product ? loan.product.description : 'Eliminado',
-                code: loan.product ? loan.product.code : '--',
-                out: new Date(loan.date_out).toLocaleDateString(),
-                return: loan.date_return ? new Date(loan.date_return).toLocaleDateString() : '',
-                status: loan.status === 'prestado' ? 'RESGUARDO' : 'DEVUELTO'
-            });
+            if (codigoProv) {
+                let mapeo = await SupplierCode.findOne({
+                    where: { rfc_proveedor: rfcProveedor, codigo_proveedor: codigoProv },
+                    include: [Product]
+                });
 
-            if (loan.status === 'prestado') {
-                row.getCell('status').font = { color: { argb: 'FFFF0000' }, bold: true };
+                if (!mapeo) {
+                    const productoManual = await Product.findOne({
+                        where: {
+                            [Op.or]: [
+                                { short_code: codigoProv },
+                                { code: codigoProv }
+                            ]
+                        }
+                    });
+
+                    if (productoManual) {
+                        mapeo = await SupplierCode.create({
+                            rfc_proveedor: rfcProveedor,
+                            codigo_proveedor: codigoProv,
+                            productId: productoManual.id
+                        });
+                        mapeo.Product = productoManual;
+                    }
+                }
+
+                if (mapeo && mapeo.Product) {
+                    // Si ya existe y lo encuentra automáticamente, sumamos stock y registramos log
+                    await mapeo.Product.increment('stock', { by: cantidad });
+                    await registrarLog(mapeo.Product.id, 'ENTRADA XML', `Se sumaron ${cantidad} unidades (Reconocimiento Automático).`);
+                } else {
+                    productosDesconocidos.push({ 
+                        rfc: rfcProveedor, 
+                        codigo: codigoProv, 
+                        descripcion: descripcionProv, 
+                        cantidad: cantidad 
+                    });
+                }
             }
-        });
+        }
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=' + 'Reporte_Prestamos.xlsx');
+        if (productosDesconocidos.length > 0) {
+            const allProducts = await Product.findAll(); 
+            return res.render('match_xml', { items: productosDesconocidos, products: allProducts, page: 'inventory' });
+        }
 
-        await workbook.xlsx.write(res);
-        res.end();
+        res.redirect('/inventory?alert=xml_success');
 
-    } catch (error) {
+    } catch (error) { res.send("Error procesando XML: " + error.message); }
+});
+
+// --- GUARDAR VINCULACIÓN CON LOG ---
+app.post('/inventory/save-mapping', async (req, res) => {
+    try {
+        const toArray = (val) => (Array.isArray(val) ? val : [val]);
+        
+        const targetProductIds = toArray(req.body.targetProductId);
+        const internalIds = toArray(req.body.internal_id || []); 
+        const supplierCodes = toArray(req.body.supplier_code || []); 
+        const descriptions = toArray(req.body.descripcion_xml);
+        const customNames = toArray(req.body.custom_name || []);
+        const rfcs = toArray(req.body.rfc);
+        const cantidades = toArray(req.body.cantidad);
+        const categories = toArray(req.body.category_xml || []); 
+
+        for (let i = 0; i < targetProductIds.length; i++) {
+            let action = targetProductIds[i]; 
+            if (action === 'SKIP') continue;
+
+            let productId = null;
+            const cantidadEntrante = parseFloat(cantidades[i]) || 0; 
+            const codigoProveedor = supplierCodes[i];
+            const rfc = rfcs[i];
+
+            // Protección anti-duplicados
+            if (action === 'NEW' && codigoProveedor) {
+                const coincidenciaPrevia = await SupplierCode.findOne({
+                    where: { rfc_proveedor: rfc, codigo_proveedor: codigoProveedor }
+                });
+                if (coincidenciaPrevia) action = coincidenciaPrevia.productId; 
+            }
+
+            if (action === 'NEW') {
+                let finalDescription = descriptions[i];
+                if (customNames[i] && customNames[i].trim() !== '') finalDescription = customNames[i];
+                
+                const codigoParaGuardar = internalIds[i]; 
+                const selectedCategory = categories[i] || 'consumible'; 
+
+                const newProduct = await Product.create({
+                    description: finalDescription, 
+                    code: codigoParaGuardar, 
+                    stock: cantidadEntrante, 
+                    short_code: codigoProveedor, 
+                    category: selectedCategory 
+                });
+                productId = newProduct.id;
+                
+                // LOG
+                await registrarLog(newProduct.id, 'ALTA XML', `Importado desde XML. Proveedor: ${codigoProveedor}`);
+
+            } else {
+                productId = action;
+                const productoExistente = await Product.findByPk(productId);
+                if (productoExistente) {
+                    await productoExistente.increment('stock', { by: cantidadEntrante });
+                    // LOG
+                    await registrarLog(productId, 'ENTRADA XML', `Se sumaron ${cantidadEntrante} unidades por vinculación XML.`);
+                }
+            }
+
+            if (productId && codigoProveedor) {
+                const [relation, created] = await SupplierCode.findOrCreate({
+                    where: { rfc_proveedor: rfc, codigo_proveedor: codigoProveedor },
+                    defaults: { productId: productId }
+                });
+                if (!created && relation.productId !== productId) {
+                    relation.productId = productId;
+                    await relation.save();
+                }
+            }
+        }
+        res.redirect('/inventory?alert=xml_processed'); 
+    } catch (error) { 
         console.error(error);
-        res.send("Error al exportar reporte");
+        res.status(500).send(`Error: ${error.message}`); 
     }
 });
 
-// --- PRÉSTAMOS (CORRECCIÓN DE DATOS FALTANTES) ---
+app.post('/inventory/import', requireLogin, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.redirect('/inventory');
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        const worksheet = workbook.getWorksheet(1);
+        const filas = [];
+        worksheet.eachRow((row, n) => { if(n>1) filas.push(row); });
+
+        for (const row of filas) {
+            let code = row.getCell(1).value ? row.getCell(1).value.toString() : '';
+            let rawClaves = row.getCell(2).value ? row.getCell(2).value.toString() : '';
+            let clavesArray = rawClaves.split(',').map(c => c.trim()).filter(c => c !== '');
+            let primary = clavesArray[0];
+            let extras = clavesArray.slice(1);
+
+            let desc = row.getCell(3).value ? row.getCell(3).value.toString() : 'Sin nombre';
+            let stock = parseInt(row.getCell(4).value) || 0;
+            code = limpiarCodigo(code);
+
+            if(code) {
+                let prod = await Product.findOne({ where: { code } });
+                if(prod) {
+                    await prod.update({ stock: prod.stock + stock, description: desc });
+                    // LOG IMPORTACIÓN
+                    await registrarLog(prod.id, 'ENTRADA EXCEL', `Se sumaron ${stock} unidades desde Excel.`);
+                } else {
+                    prod = await Product.create({ code, description: desc, stock, short_code: primary, category: 'consumible' });
+                    // LOG IMPORTACIÓN
+                    await registrarLog(prod.id, 'ALTA EXCEL', `Creado masivamente desde Excel.`);
+                }
+                for(const ex of extras) {
+                    await SupplierCode.findOrCreate({ where: { productId: prod.id, codigo_proveedor: ex }, defaults: { rfc_proveedor: 'EXCEL' } });
+                }
+            }
+        }
+        res.redirect('/inventory?alert=imported');
+    } catch (e) { res.send(e.message); }
+});
+
+// ==========================================
+// GESTIÓN DE CLAVES EXTRA (SupplierCodes)
+// ==========================================
+
+app.post('/code/update/:id', requireLogin, async (req, res) => {
+    try {
+        const { new_code, product_id } = req.body;
+        if (new_code) {
+            await SupplierCode.update(
+                { codigo_proveedor: new_code },
+                { where: { id: req.params.id } }
+            );
+        }
+        res.redirect('/inventory/edit/' + product_id + '?alert=updated');
+    } catch (error) {
+        res.send("Error al actualizar clave: " + error.message);
+    }
+});
+
+app.post('/code/delete/:id', requireLogin, async (req, res) => {
+    try {
+        const { product_id } = req.body;
+        await SupplierCode.destroy({ where: { id: req.params.id } });
+        res.redirect('/inventory/edit/' + product_id + '?alert=deleted');
+    } catch (error) {
+        res.send("Error al eliminar clave");
+    }
+});
+
+// ==========================================
+// MÓDULO DE MERMAS / DAÑOS
+// ==========================================
+
+app.get('/damages', requireLogin, async (req, res) => {
+    try {
+        const damages = await DamageLog.findAll({
+            include: [{ model: Product, as: 'Product' }],
+            order: [['createdAt', 'DESC']]
+        });
+        
+        const history = damages.map(d => {
+            const item = d.get({ plain: true });
+            item.formattedDate = new Date(item.createdAt).toLocaleString('es-MX', { 
+                timeZone: 'America/Mexico_City',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+            return item;
+        });
+
+        res.render('damages', { history, page: 'damages' });
+    } catch (error) {
+        console.error(error);
+        res.send("Error cargando historial de daños");
+    }
+});
+
+app.post('/inventory/report-damage', requireLogin, async (req, res) => {
+    try {
+        const { productId, quantity, reason, specific_code } = req.body;
+        const qty = parseInt(quantity);
+
+        const product = await Product.findByPk(productId);
+        
+        if (!product) return res.redirect('/inventory?error=noproduct');
+        if (product.stock < qty) return res.redirect('/inventory?error=nostock');
+
+        await product.decrement('stock', { by: qty });
+
+        await DamageLog.create({
+            quantity: qty,
+            reason: reason,
+            productId: product.id,
+            specific_code: specific_code 
+        });
+        
+        // LOG TAMBIÉN EN EL HISTORIAL GENERAL
+        await registrarLog(product.id, 'BAJA/MERMA', `Se reportaron ${qty} unidades dañadas. Motivo: ${reason}`);
+
+        res.redirect('/damages?alert=reported');
+
+    } catch (error) {
+        console.error(error);
+        res.send("Error reportando daño: " + error.message);
+    }
+});
+app.get('/employees', requireLogin, async (req, res) => {
+    try {
+        // AGREGAMOS "include: [Loan]" PARA QUE TRAIGA LOS PRÉSTAMOS
+        const employees = await Employee.findAll({ 
+            include: [Loan], // <--- ESTA ES LA LÍNEA QUE FALTABA
+            order: [['name', 'ASC']] 
+        });
+        
+        res.render('employees', { employees: employees, page: 'employees' });
+    } catch (error) { 
+        console.error(error); // Agregué console.error para ver si falla algo más
+        res.send("Error cargando empleados"); 
+    }
+});
+app.post('/employees/add', requireLogin, async (req, res) => {
+    await Employee.create({ name: req.body.name.toUpperCase() }); res.redirect('/employees');
+});
+app.post('/employees/delete/:id', requireLogin, async (req, res) => {
+    await Employee.destroy({ where: { id: req.params.id } }); res.redirect('/employees');
+});
+// BUSCA Y REEMPLAZA ESTA RUTA EN app.js
+
+app.get('/employees/:id', requireLogin, async (req, res) => {
+    try {
+        const emp = await Employee.findByPk(req.params.id);
+        if (!emp) return res.redirect('/employees');
+
+        // 1. Buscamos los préstamos (Datos Crudos / Sequelize Instances)
+        const loansRaw = await Loan.findAll({ 
+            where: { employeeId: req.params.id }, 
+            include: [{ model: Product }], // Incluimos el modelo Producto
+            order: [['date_out', 'DESC']] 
+        });
+
+        // 2. [CORRECCIÓN CLAVE] Convertir a objetos planos (JSON puro)
+        // Esto permite que la vista lea 'loan.Product.code' sin problemas
+        const history = loansRaw.map(loan => loan.get({ plain: true }));
+
+        const qrCode = await QRCode.toDataURL(emp.id.toString());
+        
+        // Usamos la lista 'history' ya limpia para los cálculos
+        const active = history.filter(l => l.status === 'prestado').length;
+        const returned = history.filter(l => l.status === 'devuelto' || l.status === 'consumido').length;
+
+        res.render('employee_profile', { 
+            employee: emp, 
+            history: history, // Enviamos la lista limpia a la vista
+            page: 'employees', 
+            qrCode: qrCode,
+            stats: { active, total: history.length, returned } 
+        });
+
+    } catch(e) { 
+        console.error(e);
+        res.redirect('/employees'); 
+    }
+});
+
 app.get('/loans', requireLogin, async (req, res) => {
     try {
         const allLoansRaw = await Loan.findAll({ order: [['date_out', 'DESC']] });
         const allLoans = allLoansRaw.map(l => l.get({ plain: true }));
-
-        const productsRaw = await Product.findAll();
-        const employeesRaw = await Employee.findAll();
-        
-        const products = productsRaw.map(p => p.get({ plain: true }));
-        const employees = employeesRaw.map(e => e.get({ plain: true }));
-
+        const products = (await Product.findAll()).map(p => p.get({ plain: true }));
+        const employees = (await Employee.findAll()).map(e => e.get({ plain: true }));
         allLoans.forEach(loan => {
             loan.Product = products.find(p => p.id === loan.productId);
             loan.Employee = employees.find(e => e.id === loan.employeeId);
         });
-
-        const activeLoans = allLoans.filter(l => l.status === 'prestado');
-        const historyLoans = allLoans.filter(l => l.status === 'devuelto');
-
-        res.render('loans', { 
-            loans: activeLoans, 
-            history: historyLoans, 
-            page: 'loans' 
-        });
-
-    } catch (error) {
-        console.error("Error cargando préstamos:", error);
-        res.send("Error al cargar préstamos");
-    }
+        res.render('loans', { loans: allLoans.filter(l => l.status === 'prestado'), history: allLoans.filter(l => l.status === 'devuelto'), page: 'loans' });
+    } catch (error) { res.send("Error al cargar préstamos"); }
 });
-
 app.post('/loans/add', requireLogin, async (req, res) => {
     try {
-        const employeeName = req.body.employeeName.trim().toUpperCase();
+        // 1. Recibimos el ID en lugar del Nombre
+        const empId = req.body.employeeId.trim(); 
         const productCode = limpiarCodigo(req.body.productCode);
-        const currentLoans = await Loan.findAll({ where: { status: 'prestado' }, include: [Product, Employee] });
         
+        // 2. Buscamos Producto
         const product = await Product.findOne({ where: { code: productCode } });
-        if (!product || product.stock <= 0) {
-            return res.render('loans', { 
-                loans: currentLoans,
-                page: 'loans',
-                error: !product ? `❌ Producto no encontrado` : "⚠️ Sin stock disponible"
-            });
-        }
+        if (!product || product.stock <= 0) return res.redirect('/loans?error=stock');
 
-        const employee = await Employee.findOne({ where: { name: employeeName } });
-        if (!employee) {
-            return res.render('loans', { 
-                loans: currentLoans,
-                page: 'loans',
-                error: `🚫 Empleado no registrado.`
-            });
-        }
+        // 3. CAMBIO: Buscamos Empleado por su ID (Primary Key)
+        const employee = await Employee.findByPk(empId);
+        
+        // Si no existe el ID, error
+        if (!employee) return res.redirect('/loans?error=employee');
 
+        // 4. Lógica de préstamo (igual que antes)
         const newStatus = product.category === 'herramienta' ? 'prestado' : 'consumido';
         const returnDate = product.category === 'consumible' ? new Date() : null;
 
         await Loan.create({
-            quantity: 1,
-            status: newStatus,
-            date_out: new Date(),
+            quantity: 1, 
+            status: newStatus, 
+            date_out: new Date(), 
             date_return: returnDate,
-            productId: product.id,
+            productId: product.id, 
             employeeId: employee.id,
-            
-            // --- GUARDAMOS LA FOTO (SNAPSHOT) DEL MOMENTO ---
-            backup_product: product.description,     
-            backup_employee: employee.name           
+            // Respaldos
+            backup_product: product.description, 
+            backup_employee: employee.name, 
+            backup_code: product.code          
         });
 
         await product.decrement('stock');
+        
+        // LOG (Usamos el nombre real del empleado encontrado por ID)
+        if (product.category === 'consumible') {
+            await registrarLog(product.id, 'CONSUMO', `Entregado a ${employee.name}`);
+        } else {
+            await registrarLog(product.id, 'PRÉSTAMO', `Prestado a ${employee.name}`);
+        }
+
         res.redirect('/loans');
 
-    } catch (error) {
-        res.send("Error al procesar: " + error.message);
+    } catch (error) { 
+        console.error(error);
+        res.send("Error: " + error.message); 
     }
 });
+// BUSCA Y REEMPLAZA ESTA RUTA EN app.js
 
 app.post('/loans/return/:id', requireLogin, async (req, res) => {
     try {
-        const loan = await Loan.findByPk(req.params.id);
-        if (!loan) return res.send("Préstamo no encontrado");
+        // 1. Buscamos el préstamo INCLUYENDO los datos del Empleado
+        const loan = await Loan.findByPk(req.params.id, {
+            include: [Employee] 
+        });
+
+        if (!loan) return res.redirect('/loans');
+
         const product = await Product.findByPk(loan.productId);
+        
         loan.status = 'devuelto';
         loan.date_return = new Date();
         await loan.save();
-        if (product) await product.increment('stock');
+
+        if (product) {
+            await product.increment('stock');
+            
+            // 2. Obtenemos el nombre real (o el respaldo si el empleado se borró)
+            const nombreEmpleado = loan.Employee ? loan.Employee.name : (loan.backup_employee || 'Empleado');
+
+            // 3. Guardamos el log con el NOMBRE ESPECÍFICO
+            await registrarLog(product.id, 'DEVOLUCIÓN', `Devuelto por ${nombreEmpleado}`);
+        }
+
         res.redirect('/loans');
-    } catch (error) {
-        res.send("Error al devolver");
-    }
-});
-
-// --- EMPLEADOS (SOLUCIÓN INFALIBLE) ---
-app.get('/employees', requireLogin, async (req, res) => {
-    try {
-        const employeesRaw = await Employee.findAll({ order: [['name', 'ASC']] });
-        const employees = employeesRaw.map(e => e.get({ plain: true }));
-
-        const activeLoans = await Loan.findAll({ where: { status: 'prestado' } });
-
-        employees.forEach(emp => {
-            emp.Loans = activeLoans.filter(loan => loan.employeeId === emp.id);
-        });
-
-        res.render('employees', { employees: employees, page: 'employees' });
-    } catch (error) {
+    } catch (error) { 
         console.error(error);
-        res.send("Error al cargar empleados");
-    }
-});
-
-app.post('/employees/add', requireLogin, async (req, res) => {
-    try {
-        await Employee.create({ name: req.body.name.toUpperCase() });
-        res.redirect('/employees');
-    } catch (error) {
-        res.send("Error al crear empleado");
-    }
-});
-
-// --- PERFIL DE EMPLEADO (Unión Manual corregida) ---
-app.get('/employees/:id', requireLogin, async (req, res) => {
-    try {
-        const id = req.params.id;
-        // 1. Buscamos al empleado
-        const employeeRaw = await Employee.findByPk(id);
-        if (!employeeRaw) return res.redirect('/employees');
-        const employee = employeeRaw.get({ plain: true });
-        
-        const qrCode = await QRCode.toDataURL(employee.name);
-
-        // 2. Buscamos SU historial (Crudo)
-        const historyRaw = await Loan.findAll({
-            where: { employeeId: id },
-            order: [['date_out', 'DESC']]
-        });
-        const history = historyRaw.map(h => h.get({ plain: true }));
-
-        // 3. Traemos los productos para la UNIÓN MANUAL
-        const productsRaw = await Product.findAll();
-        const products = productsRaw.map(p => p.get({ plain: true }));
-
-        // 4. Conectamos los datos (Aseguramos que 'Product' exista con mayúscula)
-        history.forEach(loan => {
-            loan.Product = products.find(p => p.id === loan.productId);
-        });
-
-        // 5. Calculamos estadísticas
-        const activeLoans = history.filter(h => h.status === 'prestado');
-        const totalLoans = history.length;
-        const returnedLoans = history.filter(h => h.status === 'devuelto').length;
-
-        res.render('employee_profile', {
-            page: 'employees',
-            employee,
-            qrCode,
-            history,
-            stats: { active: activeLoans.length, total: totalLoans, returned: returnedLoans }
-        });
-    } catch (error) {
-        console.error(error);
-        res.send("Error al cargar perfil");
-    }
-});
-
-app.post('/employees/update/:id', requireLogin, async (req, res) => {
-    try {
-        await Employee.update({ name: req.body.name.toUpperCase() }, { where: { id: req.params.id } });
-        res.redirect('/employees/' + req.params.id + '?alert=updated');
-    } catch (error) {
-        res.redirect('/employees');
-    }
-});
-
-app.post('/employees/delete/:id', requireLogin, async (req, res) => {
-    try {
-        await Employee.destroy({ where: { id: req.params.id } });
-        res.redirect('/employees');
-    } catch (error) {
-        res.send("Error al eliminar");
+        res.send("Error al devolver"); 
     }
 });
 
 // ==========================================
-// MÓDULO DE ENTRADA MASIVA (AUDITORÍA/STOCK)
+// RUTA DE HISTORIAL GENERAL (NUEVO)
 // ==========================================
-
-// 1. Mostrar la pantalla
-app.get('/inventory/audit', requireLogin, (req, res) => {
-    res.render('audit', { page: 'inventory' }); 
-});
-
-// 2. Procesar el "Vuelco" (Análisis previo)
-app.post('/inventory/audit-process', requireLogin, async (req, res) => {
+app.get('/history', requireLogin, async (req, res) => {
     try {
-        const rawData = req.body.rawData;
-        if (!rawData) return res.redirect('/inventory/audit');
-
-        // Limpiar datos
-        const codes = rawData.split(/\r?\n/).map(c => c.trim()).filter(c => c !== "");
-
-        // Contar ocurrencias
-        const counts = {};
-        codes.forEach(code => {
-            counts[code] = (counts[code] || 0) + 1;
+        const logs = await InventoryLog.findAll({
+            include: [{ model: Product, as: 'Product' }],
+            order: [['createdAt', 'DESC']]
         });
 
-        // Buscar en BD
-        const scannedItems = [];
-        let found = 0;
-        let unknown = 0;
-
-        const allProducts = await Product.findAll(); 
-        
-        for (const [code, count] of Object.entries(counts)) {
-            // Buscamos coincidencia
-            const product = allProducts.find(p => p.code === code || p.short_code === code);
-            
-            if (product) found++;
-            else unknown++;
-
-            scannedItems.push({
-                code: code,
-                count: count,
-                product: product ? product.get({ plain: true }) : null
-            });
-        }
-
-        res.render('audit', { 
-            page: 'inventory',
-            scannedItems: scannedItems,
-            stats: { found, unknown }
+        const formattedLogs = logs.map(log => {
+            const l = log.get({ plain: true });
+            l.fechaFormat = new Date(l.createdAt).toLocaleDateString('es-MX');
+            l.horaFormat = new Date(l.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+            return l;
         });
 
+        res.render('history', { logs: formattedLogs, page: 'history' });
     } catch (error) {
-        console.error(error);
-        res.send("Error al procesar lectura");
+        res.send("Error al cargar historial: " + error.message);
     }
 });
 
-// 3. CONFIRMAR INGRESO (Sumar Stock)
-app.post('/inventory/audit-confirm', requireLogin, async (req, res) => {
-    try {
-        const items = JSON.parse(req.body.validItems);
-
-        for (const item of items) {
-            if (item.product && item.product.id) {
-                const productDb = await Product.findByPk(item.product.id);
-                if (productDb) {
-                    await productDb.increment('stock', { by: item.count });
-                }
-            }
-        }
-
-        res.redirect('/inventory?alert=stock_updated');
-
-    } catch (error) {
-        console.error(error);
-        res.send("Error al actualizar el stock: " + error.message);
-    }
-});
-
-// --- IMPORTACIÓN DESDE EXCEL ---
-
-// 1. Descargar Plantilla Vacía (Para que el usuario sepa cómo llenar los datos)
-app.get('/inventory/template', requireLogin, async (req, res) => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Plantilla de Carga');
-
-    // Definimos las columnas exactas que el sistema espera
-    worksheet.columns = [
-        { header: 'CÓDIGO (Obligatorio)', key: 'code', width: 25 },
-        { header: 'CLAVE CORTA (Opcional)', key: 'short_code', width: 15 },
-        { header: 'DESCRIPCIÓN', key: 'description', width: 40 },
-        { header: 'STOCK INICIAL', key: 'stock', width: 15 },
-        { header: 'TIPO (Herramienta/Consumible)', key: 'category', width: 25 }
-    ];
-
-    // Ejemplo de ayuda en la primera fila (opcional, pero útil)
-    worksheet.addRow({
-        code: 'EJ-001',
-        short_code: 'A-1',
-        description: 'Ejemplo: Martillo (Borrar esta fila)',
-        stock: 10,
-        category: 'Herramienta'
-    });
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=Plantilla_Inventario.xlsx');
-
-    await workbook.xlsx.write(res);
-    res.end();
-});
-
-// 2. Procesar el Excel subido
-app.post('/inventory/import', requireLogin, upload.single('file'), async (req, res) => {
-    try {
-        if (!req.file) return res.redirect('/inventory');
-
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(req.file.buffer);
-
-        const worksheet = workbook.getWorksheet(1);
-        let importados = 0;
-        let errores = 0;
-
-        // --- CAMBIO IMPORTANTE: PREPARAMOS DATOS PRIMERO ---
-        // Extraemos las filas a un array simple para poder iterarlas con 'await' (pausa) una por una.
-        const filasParaProcesar = [];
-        
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return; // Saltar encabezado
-            filasParaProcesar.push({ row, rowNumber });
-        });
-
-        // --- PROCESAMIENTO SECUENCIAL (UNO POR UNO) ---
-        // Usamos un bucle for...of que respeta el 'await'. 
-        // Esto evita que dos filas intenten escribirse al mismo tiempo.
-        for (const item of filasParaProcesar) {
-            const row = item.row;
-            const rowNumber = item.rowNumber;
-
-            // Lectura de celdas
-            let code = row.getCell(1).value ? row.getCell(1).value.toString() : ''; 
-            let short_code = row.getCell(2).value ? row.getCell(2).value.toString() : null;
-            let description = row.getCell(3).value ? row.getCell(3).value.toString() : '';
-            let stock = row.getCell(4).value ? parseInt(row.getCell(4).value) : 0;
-            let categoryRaw = row.getCell(5).value ? row.getCell(5).value.toString().toLowerCase() : '';
-
-            // Limpieza
-            code = limpiarCodigo(code);
-            if (!description) description = 'Sin descripción';
-            
-            // Categoría
-            let category = 'consumible'; 
-            if (categoryRaw.includes('herramienta') || categoryRaw.includes('fijo')) {
-                category = 'herramienta';
-            }
-
-            if (code) {
-                try {
-                    // 1. Buscamos (Esperamos a que la BD responda)
-                    const productoExistente = await Product.findOne({ where: { code: code } });
-
-                    if (productoExistente) {
-                        // 2. Si existe, actualizamos
-                        const stockActual = parseInt(productoExistente.stock) || 0;
-                        const stockEntrante = stock || 0;
-                        const nuevoTotal = stockActual + stockEntrante;
-
-                        console.log(`Fila ${rowNumber}: Actualizando ${code} (Stock ${stockActual} + ${stockEntrante} = ${nuevoTotal})`);
-                        
-                        await productoExistente.update({
-                            description: description, 
-                            stock: nuevoTotal, 
-                            category: category,
-                            // Solo actualizamos short_code si el del excel trae dato
-                            short_code: short_code ? short_code : productoExistente.short_code 
-                        });
-                    } else {
-                        // 3. Si no existe, creamos
-                        console.log(`Fila ${rowNumber}: Creando nuevo ${code}`);
-                        await Product.create({
-                            code, short_code, description, stock, category
-                        });
-                    }
-                    importados++;
-                } catch (error) {
-                    // Si falla, mostramos el error pero no detenemos el bucle
-                    console.error(`Error crítico en fila ${rowNumber} (Código: ${code}):`, error.message);
-                    errores++;
-                }
-            } else {
-                errores++;
-            }
-        } // Fin del bucle for
-
-        console.log(`--- Importación Finalizada: ${importados} procesados, ${errores} errores ---`);
-        res.redirect('/inventory?alert=imported');
-
-    } catch (error) {
-        console.error("Error general importando Excel:", error);
-        res.send("Error en el archivo: " + error.message);
-    }
-});
-
-// INICIAR
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`--- Servidor corriendo en http://localhost:${PORT} ---`);

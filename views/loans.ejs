@@ -89,10 +89,10 @@
                 <form action="/loans/add" method="POST">
                     <div class="row">
                         <div class="col-md-5">
-                            <label class="form-control-label">Empleado / Solicitante</label>
+                            <label class="form-control-label">ID de Empleado (Gafete)</label>
                             <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                <input type="text" name="employeeName" class="form-control" placeholder="Escanear Gafete o Escribir Nombre..." required autofocus>
+                                <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                                <input type="text" name="employeeId" class="form-control" placeholder="Escanear ID..." required autofocus autocomplete="off">
                             </div>
                         </div>
                         <div class="col-md-5">
@@ -185,8 +185,8 @@
                                                 <h6 class="mb-0 text-sm">
                                                     <%= loan.Product ? loan.Product.description : (loan.backup_product || 'Item Eliminado') %>
                                                 </h6>
-                                                <p class="text-xs text-secondary mb-0">
-                                                    Clave: <%= loan.Product ? loan.Product.short_code : '--' %>
+                                                <p class="text-xs text-secondary mb-0 font-weight-bold">
+                                                    <i class="fas fa-qrcode me-1"></i> <%= loan.Product ? loan.Product.code : (loan.backup_code || '--') %>
                                                 </p>
                                             </div>
                                         </td>

@@ -4,7 +4,7 @@
 <head>
   <%- include('partials/head') %>
   <style>
-      /* --- ESTILOS DE TABLA --- */
+      /* --- ESTILOS DEL DISEÑO ORIGINAL (Recuperados) --- */
       .dataTables_wrapper .page-item .page-link {
           border-radius: 8px !important;
           margin: 0 3px;
@@ -37,29 +37,24 @@
           padding: 0.25rem 1.5rem 0.25rem 0.5rem;
           margin: 0 0.5rem;
       }
-
-      /* --- ESTILOS DE TARJETAS --- */
-      .cursor-pointer {
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: 2px solid transparent !important; 
-      }
-      .cursor-pointer:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(50, 50, 93, 0.1);
-      }
-      
-      /* --- COLORES DE ESTADO ACTIVO --- */
-      .active-total { border-color: #5e72e4 !important; background-color: #f6f9fc !important; }
-      .active-tools { border-color: #11cdef !important; background-color: #f8fdfe !important; }
-      .active-consumables { border-color: #8392ab !important; background-color: #f6f9fc !important; }
-      .active-low { border-color: #fb6340 !important; background-color: #fff3cd !important; }
-      
       .dataTables_wrapper .dataTables_filter input {
           border: 1px solid #d2d6da;
           border-radius: 0.5rem;
           padding: 0.4rem;
       }
+
+      /* --- ESTILOS NUEVOS (Para funcionalidad extra) --- */
+      .badge-extra { cursor: pointer; transition: 0.2s; }
+      .badge-extra:hover { background-color: #e9ecef !important; color: #344767 !important; }
+      
+      .cursor-pointer { cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent !important; }
+      .cursor-pointer:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(50, 50, 93, 0.1); }
+      
+      /* Colores Filtros */
+      .active-total { border-color: #5e72e4 !important; background-color: #f6f9fc !important; }
+      .active-tools { border-color: #11cdef !important; background-color: #f8fdfe !important; }
+      .active-consumables { border-color: #8392ab !important; background-color: #f6f9fc !important; }
+      .active-low { border-color: #fb6340 !important; background-color: #fff3cd !important; }
   </style>
 </head>
 
@@ -80,7 +75,7 @@
       <div class="row mb-4">
         
         <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-          <div class="card cursor-pointer active-total" id="cardTotal" onclick="applyFilter('all')" title="Ver todo el inventario">
+          <div class="card cursor-pointer active-total" id="cardTotal" onclick="applyFilter('all')">
             <div class="card-body p-3">
               <div class="row">
                 <div class="col-8">
@@ -91,7 +86,7 @@
                 </div>
                 <div class="col-4 text-end">
                   <div class="icon icon-shape bg-gradient-primary shadow-primary text-center rounded-circle">
-                    <i class="fas fa-boxes text-lg opacity-10" aria-hidden="true"></i>
+                    <i class="fas fa-boxes text-lg opacity-10"></i>
                   </div>
                 </div>
               </div>
@@ -100,7 +95,7 @@
         </div>
 
         <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card cursor-pointer" id="cardTools" onclick="applyFilter('tools')" title="Ver solo herramientas">
+            <div class="card cursor-pointer" id="cardTools" onclick="applyFilter('tools')">
               <div class="card-body p-3">
                 <div class="row">
                   <div class="col-8">
@@ -113,7 +108,7 @@
                   </div>
                   <div class="col-4 text-end">
                     <div class="icon icon-shape bg-gradient-info shadow-info text-center rounded-circle">
-                      <i class="fas fa-wrench text-lg opacity-10" aria-hidden="true"></i>
+                      <i class="fas fa-wrench text-lg opacity-10"></i>
                     </div>
                   </div>
                 </div>
@@ -122,20 +117,20 @@
           </div>
 
         <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card cursor-pointer" id="cardConsumables" onclick="applyFilter('consumables')" title="Ver solo consumibles">
+            <div class="card cursor-pointer" id="cardConsumables" onclick="applyFilter('consumables')">
               <div class="card-body p-3">
                 <div class="row">
                   <div class="col-8">
                     <div class="numbers">
                       <p class="text-sm mb-0 text-uppercase font-weight-bold">Consumibles</p>
                       <h5 class="font-weight-bolder text-secondary">
-                        <%= products.filter(p => p.category === 'consumible').length %>
+                         <%= products.filter(p => p.category === 'consumible').length %>
                       </h5>
                     </div>
                   </div>
                   <div class="col-4 text-end">
                     <div class="icon icon-shape bg-gradient-secondary shadow-secondary text-center rounded-circle">
-                      <i class="fas fa-box-open text-lg opacity-10" aria-hidden="true"></i>
+                      <i class="fas fa-box-open text-lg opacity-10"></i>
                     </div>
                   </div>
                 </div>
@@ -144,27 +139,26 @@
           </div>
 
         <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card cursor-pointer" id="cardLowStock" onclick="applyFilter('low')" title="Ver alertas de stock">
+            <div class="card cursor-pointer" id="cardLowStock" onclick="applyFilter('low')">
               <div class="card-body p-3">
                 <div class="row">
                   <div class="col-8">
                     <div class="numbers">
                       <p class="text-sm mb-0 text-uppercase font-weight-bold">Stock Bajo</p>
                       <h5 class="font-weight-bolder text-warning">
-                        <%= products.filter(p => p.stock < 5).length %>
+                         <%= products.filter(p => p.stock < 5).length %>
                       </h5>
                     </div>
                   </div>
                   <div class="col-4 text-end">
-                    <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
-                      <i class="fas fa-exclamation-triangle text-lg opacity-10" aria-hidden="true"></i>
+                     <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
+                      <i class="fas fa-exclamation-triangle text-lg opacity-10"></i>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
       </div>
 
       <div id="searchAlert" class="alert alert-danger text-white shadow collapse" role="alert" style="display:none;">
@@ -184,17 +178,23 @@
 
                   <div class="dropdown">
                       <button class="btn btn-sm bg-gradient-primary mb-0 dropdown-toggle" type="button" id="importMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                          <i class="fas fa-file-upload me-1"></i> Importar Excel
+                           <i class="fas fa-file-upload me-1"></i> Importar Datos
                       </button>
                       <ul class="dropdown-menu" aria-labelledby="importMenu">
                           <li>
-                              <a class="dropdown-item" href="/inventory/template">
+                             <a class="dropdown-item" href="/inventory/template">
                                   <i class="fas fa-download text-secondary me-2"></i> Descargar Plantilla
                               </a>
                           </li>
+                          <li><hr class="dropdown-divider"></li>
                           <li>
                               <a class="dropdown-item" href="javascript:;" onclick="document.getElementById('fileInput').click()">
-                                  <i class="fas fa-upload text-primary me-2"></i> Subir Archivo Lleno
+                                  <i class="fas fa-file-excel text-success me-2"></i> Subir Excel (.xlsx)
+                              </a>
+                          </li>
+                          <li>
+                              <a class="dropdown-item" href="javascript:;" onclick="document.getElementById('xmlInput').click()">
+                                  <i class="fas fa-file-code text-warning me-2"></i> Cargar Factura XML
                               </a>
                           </li>
                       </ul>
@@ -204,7 +204,11 @@
                 <form id="formImport" action="/inventory/import" method="POST" enctype="multipart/form-data" style="display: none;">
                     <input type="file" name="file" id="fileInput" accept=".xlsx" onchange="document.getElementById('formImport').submit()">
                 </form>
+                <form id="formImportXML" action="/inventory/import-xml" method="POST" enctype="multipart/form-data" style="display: none;">
+                    <input type="file" name="xmlFile" id="xmlInput" accept=".xml" onchange="document.getElementById('formImportXML').submit()">
+                </form>
             </div>
+
             <div class="card-body">
                 <form action="/inventory/add" method="POST">
                     <div class="row">
@@ -271,19 +275,22 @@
               <h6>Base de Datos de Inventario</h6>
               
               <div class="d-flex align-items-center">
-                  <div class="input-group me-3" style="width: 250px;">
+                  <div class="input-group me-2" style="width: 200px;">
                       <span class="input-group-text text-body"><i class="fas fa-search" aria-hidden="true"></i></span>
                       <input type="text" class="form-control" id="customSearch" placeholder="Buscar...">
                   </div>
 
-                  <a href="/inventory/export?filter=all" id="btnExport" class="btn btn-outline-success btn-sm mb-0">
-                    <i class="fas fa-file-excel me-1"></i> Descargar Excel
+                  <a href="/damages" class="btn btn-outline-warning btn-sm mb-0 me-2" title="Ver historial de mermas">
+                      <i class="fas fa-heart-broken me-1"></i> Bajas
                   </a>
 
-                  <button type="button" onclick="confirmarBorradoMasivo()" class="btn btn-outline-danger btn-sm mb-0 ms-2" id="btnBulkDelete">
-                    <i class="fas fa-trash-alt me-1"></i> Borrar Lista
-                  </button>
+                  <a href="/inventory/export?filter=all" id="btnExport" class="btn btn-outline-success btn-sm mb-0 me-2">
+                     <i class="fas fa-file-excel me-1"></i> Excel
+                  </a>
 
+                  <button type="button" onclick="confirmarBorradoMasivo()" class="btn btn-outline-danger btn-sm mb-0" id="btnBulkDelete">
+                    <i class="fas fa-trash-alt me-1"></i> Borrar
+                  </button>
               </div>
             </div>
 
@@ -292,8 +299,8 @@
                 <table class="table align-items-center mb-0" id="dataTable">
                   <thead>
                     <tr>
-                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Producto</th>
-                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Código</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Producto y Claves</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Código QR</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Tipo</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Stock</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Acciones</th>
@@ -306,13 +313,40 @@
                           <div class="d-flex px-2 py-1">
                             <div class="d-flex flex-column justify-content-center">
                               <h6 class="mb-0 text-sm"><%= product.description %></h6>
-                              <p class="text-xs text-secondary mb-0"><%= product.short_code || 'Sin clave' %></p>
+                              
+                              <div class="mt-1">
+                                  <% 
+                                      let codigos = [];
+                                      if (product.short_code && product.short_code !== '--') codigos.push(product.short_code);
+                                      if (product.ExtraCodes && product.ExtraCodes.length > 0) {
+                                          product.ExtraCodes.forEach(sc => { codigos.push(sc.codigo_proveedor); });
+                                      }
+                                      let codigosUnicos = [...new Set(codigos)];
+                                  %>
+
+                                  <% if (codigosUnicos.length > 0) { %>
+                                      <% codigosUnicos.slice(0, 3).forEach(c => { %>
+                                          <span class="badge badge-sm bg-gradient-secondary me-1"><%= c %></span>
+                                      <% }) %>
+                                      <% if (codigosUnicos.length > 3) { %>
+                                          <span class="badge badge-sm bg-light text-dark border badge-extra" 
+                                                onclick="verCodigosExtra('<%= product.description %>', '<%= codigosUnicos.join(',') %>')"
+                                                title="Ver todas las claves">
+                                              +<%= codigosUnicos.length - 3 %>
+                                          </span>
+                                      <% } %>
+                                  <% } else { %>
+                                      <span class="text-xs text-muted">Sin clave</span>
+                                  <% } %>
+                              </div>
                             </div>
                           </div>
                         </td>
+                        
                         <td>
                           <p class="text-xs font-weight-bold mb-0"><%= product.code %></p>
                         </td>
+                        
                         <td class="align-middle text-center text-sm">
                             <a href="/inventory/toggle/<%= product.id %>">
                                 <% if(product.category == 'herramienta') { %>
@@ -322,21 +356,31 @@
                                 <% } %>
                             </a>
                         </td>
+                        
                         <td class="align-middle text-center">
                             <% if(product.stock < 5) { %>
                                 <span class="text-danger text-xs font-weight-bold"><%= product.stock %> (Bajo)</span>
                             <% } else { %>
-                                <span class="text-success text-xs font-weight-bold"><%= product.stock %></span>
+                                 <span class="text-success text-xs font-weight-bold"><%= product.stock %></span>
                             <% } %>
                         </td>
+                        
                         <td class="align-middle text-center">
-                          <a href="/inventory/qr/<%= product.id %>" target="_blank" class="mx-2" data-bs-toggle="tooltip" title="Ver QR">
+                          <a href="/inventory/qr/<%= product.id %>" target="_blank" class="mx-1" data-bs-toggle="tooltip" title="Ver QR">
                             <i class="fas fa-qrcode text-lg text-primary"></i>
                           </a>
-                          <a href="/inventory/edit/<%= product.id %>" class="mx-2" data-bs-toggle="tooltip" title="Editar">
+                          
+                          <a href="/inventory/edit/<%= product.id %>" class="mx-1" data-bs-toggle="tooltip" title="Editar">
                             <i class="fas fa-edit text-lg text-warning"></i>
                           </a>
-                          <a href="javascript:;" onclick="confirmarEliminar('<%= product.id %>')" class="mx-2" data-bs-toggle="tooltip" title="Borrar">
+
+                          <a href="javascript:;" 
+                             onclick="abrirModalDaño('<%= product.id %>', '<%= product.description %>', <%= product.stock %>, '<%= codigosUnicos.join(',') %>')" 
+                             class="mx-1" data-bs-toggle="tooltip" title="Reportar Merma/Daño">
+                             <i class="fas fa-exclamation-triangle text-lg text-warning"></i>
+                          </a>
+
+                          <a href="javascript:;" onclick="confirmarEliminar('<%= product.id %>')" class="mx-1" data-bs-toggle="tooltip" title="Borrar">
                             <i class="fas fa-trash text-lg text-danger"></i>
                           </a>
                         </td>
@@ -366,6 +410,88 @@
 
   <form id="formEliminar" method="POST" style="display: none;"></form>
 
+  <div class="modal fade" id="modalCodigos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-gradient-primary">
+          <h6 class="modal-title text-white" id="tituloModalCodigos">Códigos Adicionales</h6>
+          <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body p-0">
+            <ul class="list-group list-group-flush" id="cuerpoModalCodigos">
+                </ul>
+        </div>
+        <div class="modal-footer p-2">
+            <button type="button" class="btn btn-sm btn-link text-secondary mb-0" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalDano" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-gradient-warning">
+          <h6 class="modal-title text-white"><i class="fas fa-exclamation-circle me-1"></i> Reportar Merma / Daño</h6>
+          <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form action="/inventory/report-damage" method="POST">
+            <div class="modal-body">
+                <input type="hidden" name="productId" id="danoProductId">
+                
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon icon-shape bg-gradient-danger shadow text-center border-radius-md me-3">
+                        <i class="fas fa-box-open text-white opacity-10"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 text-sm">Producto Afectado</h6>
+                        <p class="text-sm font-weight-bold mb-0" id="danoProductName"></p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-6">
+                        <label class="form-label text-xs">Stock Actual</label>
+                        <input type="text" class="form-control" id="danoStockActual" disabled>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-xs">Cantidad Dañada</label>
+                        <input type="number" name="quantity" class="form-control" required min="1" value="1">
+                    </div>
+                </div>
+
+                <div class="form-group mt-3">
+                    <label class="form-label text-xs">Clave Específica (Opcional)</label>
+                    <select name="specific_code" id="danoSpecificCode" class="form-control">
+                        </select>
+                    <small class="text-muted text-xxs">Selecciona si el daño corresponde a un lote/proveedor específico.</small>
+                </div>
+
+                <div class="form-group mt-2">
+                    <label class="form-label text-xs">Motivo / Razón</label>
+                    <select name="reason" class="form-control" required>
+                        <option value="Llegó Dañado/Roto">🚚 Llegó Dañado/Roto</option>
+                        <option value="Defecto de Fábrica">🏭 Defecto de Fábrica</option>
+                        <option value="Caducado/Vencido">📅 Caducado/Vencido</option>
+                        <option value="Roto durante uso">🔨 Roto durante uso</option>
+                        <option value="Perdido/Extraviado">🔍 Perdido/Extraviado</option>
+                        <option value="Otro">📝 Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-white" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn bg-gradient-danger text-white">Confirmar Baja</button>
+            </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <%- include('partials/scripts') %>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -378,161 +504,253 @@
   </script>
 
   <script>
-    // ------------------------------------------------
-    // LÓGICA DE FILTRADO INTELIGENTE (4 ESTADOS)
-    // ------------------------------------------------
-    var currentFilter = 'all';
+    $(document).ready(function() {
+        
+        // 1. INICIALIZAR DATATABLE CON TU DISEÑO ORIGINAL
+        var table = $('#dataTable').DataTable({
+            language: { "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
+            "pageLength": 10,
+            "dom": '<"mb-4"l>rt<"d-flex justify-content-between align-items-center mt-4 border-top pt-3"ip><"clear">',
+            "drawCallback": function(settings) {
+                var api = this.api();
+                var searchValue = api.search();
+                if (searchValue.length > 0 && api.rows({filter: 'applied'}).count() === 0) {
+                        $('#searchAlert').slideDown();
+                        $('#searchText').text(searchValue);
+                } else {
+                        $('#searchAlert').slideUp();
+                }
+            }
+        });
 
+        // 2. BUSCADOR
+        $('#customSearch').on('keyup change input', function() {
+            var val = $(this).val();
+            var cleanVal = val.replace(/'/g, '-').replace(/´/g, '-').trim();
+            if (val !== cleanVal) $(this).val(cleanVal);
+            if (cleanVal == "") $('#searchAlert').slideUp();
+            table.search(cleanVal).draw();
+        });
+
+        // 3. GENERADORES
+        $('#btnGenerateQR').click(function() {
+            var randomCode = 'GEN-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
+            $('#inputCode').val(randomCode);
+        });
+        $('#btnGenerateShort').click(function() {
+            var randomShort = 'ART-' + Math.floor(100 + Math.random() * 900);
+            $('#inputShortCode').val(randomShort);
+            $('input[name="description"]').focus();
+        });
+
+        // 4. ALERTA DE STOCK BAJO (CORREGIDA)
+        try {
+            const rawData = document.getElementById('products-data').textContent;
+            const todosLosProductos = JSON.parse(rawData);
+
+            const itemsBajos = todosLosProductos
+                .filter(item => item.stock < 5)
+                .map(item => { return { desc: item.description, stock: item.stock }; });
+
+            if (itemsBajos.length > 0) {
+                let tableRows = '';
+                const maxMostrar = 5;
+                const mostrar = itemsBajos.slice(0, maxMostrar);
+                
+                mostrar.forEach((item, index) => {
+                    const bgRow = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8f9fe;';
+                    tableRows += `
+                        <tr style="${bgRow} border-bottom: 1px solid #e9ecef;">
+                            <td style="padding: 4px 8px; text-align: left; color: #32325d; font-size: 0.85rem;">${item.desc}</td>
+                            <td style="padding: 4px 8px; text-align: right; color: #fb6340; font-weight: bold; font-size: 0.85rem;">${item.stock}</td>
+                        </tr>
+                    `;
+                });
+
+                let masInfo = '';
+                if (itemsBajos.length > maxMostrar) {
+                    masInfo = `<div style="padding-top: 5px; font-size: 0.75rem; color: #8898aa; font-style: italic;">... y ${itemsBajos.length - maxMostrar} más.</div>`;
+                }
+
+                const contentHTML = `
+                    <div style="background-color: #f6f9fc; border-radius: 6px; padding: 10px; border-left: 4px solid #fb6340;">
+                        <p style="text-align: left; margin-bottom: 5px; font-size: 0.85rem; color: #525f7f;">
+                            Artículos con niveles críticos:
+                        </p>
+                        <div style="border-radius: 4px; overflow: hidden; border: 1px solid #e9ecef;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                ${tableRows}
+                            </table>
+                        </div>
+                        ${masInfo}
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    Swal.fire({
+                        title: 'Nivel de Stock Crítico',
+                        html: contentHTML,
+                        icon: 'warning',
+                        width: '450px',
+                        padding: '1rem',
+                        showCancelButton: true,
+                        confirmButtonText: 'Revisar',
+                        cancelButtonText: 'Entendido',
+                        confirmButtonColor: '#fb6340',
+                        cancelButtonColor: '#2dce89',
+                        customClass: {
+                            title: 'text-warning font-weight-bold mb-1',
+                            popup: 'shadow-lg',
+                            actions: 'mt-2'
+                        },
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            applyFilter('low');
+                            $('html, body').animate({
+                                scrollTop: $("#inventoryCard").offset().top - 100
+                            }, 800);
+                        }
+                    });
+                }, 500); 
+            }
+        } catch (e) {
+            console.error("Error mostrando alerta:", e);
+        }
+    });
+
+    // ------------------------------------------------
+    // FUNCIONES GLOBALES (FUERA DE READY)
+    // ------------------------------------------------
+    
+    // Filtro Personalizado DataTable
+    var currentFilter = 'all';
     $.fn.dataTable.ext.search.push(
         function(settings, data, dataIndex) {
-            // Preparamos los datos de la fila
             const stockStr = data[3] || "0"; 
             const stockVal = parseFloat(stockStr.replace(/<[^>]+>/g, '').replace(/[^0-9.]/g, ''));
-            const tipo = (data[2] || "").toLowerCase(); // Columna 'Tipo' es el índice 2
+            const tipo = (data[2] || "").toLowerCase(); 
 
             if (currentFilter === 'all') return true;
-            
-            // Filtro Stock Bajo
-            if (currentFilter === 'low') {
-                return stockVal < 5;
-            }
-            
-            // Filtro Herramientas
-            if (currentFilter === 'tools') {
-                return tipo.includes('herramienta');
-            }
-
-            // Filtro Consumibles
-            if (currentFilter === 'consumables') {
-                return tipo.includes('consumible');
-            }
-
+            if (currentFilter === 'low') return stockVal < 5;
+            if (currentFilter === 'tools') return tipo.includes('herramienta');
+            if (currentFilter === 'consumables') return tipo.includes('consumible');
             return true;
         }
     );
 
     function applyFilter(type) {
         currentFilter = type;
-        
-        // Elementos DOM
+        var btnExport = document.getElementById('btnExport');
+        if(btnExport) btnExport.href = '/inventory/export?filter=' + type;
+
         var cardTotal = document.getElementById('cardTotal');
         var cardTools = document.getElementById('cardTools');
         var cardConsumables = document.getElementById('cardConsumables');
         var cardLow = document.getElementById('cardLowStock');
-        
-        // **NUEVO: ACTUALIZAR BOTÓN DE EXCEL**
-        // Cambiamos el enlace para que descargue lo que estamos viendo
-        var btnExport = document.getElementById('btnExport');
-        if(btnExport) {
-            btnExport.href = '/inventory/export?filter=' + type;
-        }
 
-        // 1. Resetear estilos
-        cardTotal.classList.remove('active-total');
-        cardTools.classList.remove('active-tools');
-        cardConsumables.classList.remove('active-consumables');
-        cardLow.classList.remove('active-low');
+        [cardTotal, cardTools, cardConsumables, cardLow].forEach(c => {
+            if(c) c.classList.remove('active-total', 'active-tools', 'active-consumables', 'active-low');
+        });
 
-        // 2. Aplicar estilos activos
-        if (type === 'all') {
-            cardTotal.classList.add('active-total');
-        } else if (type === 'tools') {
-            cardTools.classList.add('active-tools');
-        } else if (type === 'consumables') {
-            cardConsumables.classList.add('active-consumables');
-        } else if (type === 'low') {
-            cardLow.classList.add('active-low');
-        }
+        if (type === 'all') cardTotal.classList.add('active-total');
+        if (type === 'tools') cardTools.classList.add('active-tools');
+        if (type === 'consumables') cardConsumables.classList.add('active-consumables');
+        if (type === 'low') cardLow.classList.add('active-low');
 
-        // 3. Redibujar la tabla
         $('#dataTable').DataTable().draw();
     }
 
-    // ------------------------------------------------
-    // ALERTA POPUP INICIAL
-    // ------------------------------------------------
-    const rawData = document.getElementById('products-data').textContent;
-    const todosLosProductos = JSON.parse(rawData);
-
-    const itemsBajos = todosLosProductos
-        .filter(item => item.stock < 5)
-        .map(item => { return { desc: item.description, stock: item.stock }; });
-
-    if (itemsBajos.length > 0) {
-        
-        let tableRows = '';
-        const maxMostrar = 5;
-        const mostrar = itemsBajos.slice(0, maxMostrar);
-        
-        mostrar.forEach((item, index) => {
-            const bgRow = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8f9fe;';
-            tableRows += `
-                <tr style="${bgRow} border-bottom: 1px solid #e9ecef;">
-                    <td style="padding: 4px 8px; text-align: left; color: #32325d; font-size: 0.85rem;">${item.desc}</td>
-                    <td style="padding: 4px 8px; text-align: right; color: #fb6340; font-weight: bold; font-size: 0.85rem;">${item.stock}</td>
-                </tr>
-            `;
+    // Funciones Modales
+    function verCodigosExtra(descripcion, listaCodigosString) {
+        const lista = listaCodigosString.split(',');
+        const tituloCorto = descripcion.length > 30 ? descripcion.substring(0, 30) + '...' : descripcion;
+        document.getElementById('tituloModalCodigos').innerText = tituloCorto;
+        let htmlContent = '';
+        lista.forEach(codigo => {
+            htmlContent += `<li class="list-group-item text-sm">${codigo}</li>`;
         });
-
-        let masInfo = '';
-        if (itemsBajos.length > maxMostrar) {
-            masInfo = `<div style="padding-top: 5px; font-size: 0.75rem; color: #8898aa; font-style: italic;">... y ${itemsBajos.length - maxMostrar} más.</div>`;
-        }
-
-        const contentHTML = `
-            <div style="background-color: #f6f9fc; border-radius: 6px; padding: 10px; border-left: 4px solid #fb6340;">
-                <p style="text-align: left; margin-bottom: 5px; font-size: 0.85rem; color: #525f7f;">
-                    Artículos con niveles críticos:
-                </p>
-                <div style="border-radius: 4px; overflow: hidden; border: 1px solid #e9ecef;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        ${tableRows}
-                    </table>
-                </div>
-                ${masInfo}
-            </div>
-        `;
-
-        Swal.fire({
-            title: 'Nivel de Stock Crítico',
-            html: contentHTML,
-            icon: 'warning',
-            width: '450px',
-            padding: '1rem',
-            showCancelButton: true,
-            confirmButtonText: 'Revisar',
-            cancelButtonText: 'Entendido',
-            confirmButtonColor: '#fb6340',
-            cancelButtonColor: '#2dce89',
-            customClass: {
-                title: 'text-warning font-weight-bold mb-1',
-                popup: 'shadow-lg',
-                actions: 'mt-2'
-            },
-            reverseButtons: true
-            
-        }).then((result) => {
-            if (result.isConfirmed) {
-                applyFilter('low');
-                $('html, body').animate({
-                    scrollTop: $("#inventoryCard").offset().top - 100
-                }, 800);
-            }
-        });
+        document.getElementById('cuerpoModalCodigos').innerHTML = htmlContent;
+        var myModal = new bootstrap.Modal(document.getElementById('modalCodigos'));
+        myModal.show();
     }
 
-    // ------------------------------------------------
-    // ALERTAS DE OPERACIONES
-    // ------------------------------------------------
+    function abrirModalDaño(id, nombre, stock, codigosString) {
+        document.getElementById('danoProductId').value = id;
+        document.getElementById('danoProductName').innerText = nombre;
+        document.getElementById('danoStockActual').value = stock;
+        
+        const selectClaves = document.getElementById('danoSpecificCode');
+        selectClaves.innerHTML = '';
+        const listaCodigos = codigosString ? codigosString.split(',').filter(c => c) : [];
+
+        if (listaCodigos.length > 0) {
+            listaCodigos.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c; opt.text = c;
+                selectClaves.appendChild(opt);
+            });
+            const optGen = document.createElement('option');
+            optGen.value = "GENERICO"; optGen.text = "Otra / Sin Especificar";
+            selectClaves.appendChild(optGen);
+        } else {
+            const opt = document.createElement('option');
+            opt.value = "GENERICO"; opt.text = "Sin Clave Específica";
+            selectClaves.appendChild(opt);
+        }
+
+        var myModal = new bootstrap.Modal(document.getElementById('modalDano'));
+        myModal.show();
+    }
+
+    // Alertas Generales
     const urlParams = new URLSearchParams(window.location.search);
     const alertType = urlParams.get('alert');
 
-    if (alertType === 'created') {
-        Swal.fire({ icon: 'success', title: 'Registrado', text: 'El ítem se guardó correctamente.', confirmButtonColor: '#5e72e4', timer: 3000 });
-        window.history.replaceState(null, null, window.location.pathname);
-    } 
-    if (alertType === 'deleted') {
-        Swal.fire({ icon: 'success', title: 'Eliminado', text: 'El ítem ha sido borrado.', confirmButtonColor: '#5e72e4', timer: 3000 });
+    if (alertType) {
+        // Valores por defecto
+        let icon = 'success';
+        let title = 'Operación Exitosa';
+        let text = 'La acción se completó correctamente.';
+        let confirmBtn = '#5e72e4';
+
+        if (alertType === 'created') { 
+            title = 'Registrado'; 
+            text = 'El ítem se guardó correctamente.'; 
+        } else if (alertType === 'duplicate') {
+            // ERROR DE DUPLICADO
+            icon = 'error';
+            title = '¡Código Duplicado!';
+            text = 'El Código QR o de Barras que intentaste registrar YA EXISTE en el inventario.';
+            confirmBtn = '#f5365c'; // Rojo
+        } else if (alertType === 'deleted') { 
+            title = 'Eliminado'; 
+            text = 'El ítem ha sido borrado.'; 
+        } else if (alertType === 'imported') { 
+            title = 'Importación Exitosa'; 
+            text = 'Datos cargados desde Excel.'; 
+        } else if (alertType === 'xml_success') { 
+            title = 'XML Procesado'; 
+            text = 'Stock y Claves actualizadas.'; 
+        } else if (alertType === 'xml_processed') { 
+            title = 'Vinculación Completa'; 
+            text = 'Productos nuevos creados desde XML.'; 
+        } else if (alertType === 'bulk_deleted') { 
+            title = 'Limpieza Completada'; 
+            text = 'Los registros seleccionados han sido eliminados.'; 
+        } else if (alertType === 'stock_updated') { 
+            title = 'Stock Actualizado'; 
+            text = 'Las cantidades han sido sumadas al inventario.'; 
+            confirmBtn = '#2dce89'; 
+        }
+
+        Swal.fire({ 
+            icon: icon, 
+            title: title, 
+            text: text, 
+            confirmButtonColor: confirmBtn, 
+            timer: 3000 
+        });
         window.history.replaceState(null, null, window.location.pathname);
     }
 
@@ -554,120 +772,40 @@
             }
         })
     }
-
-    // ------------------------------------------------
-    // INICIALIZACIÓN
-    // ------------------------------------------------
-    $(document).ready(function() {
-        var table = $('#dataTable').DataTable({
-            language: { "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json" },
-            "pageLength": 10,
-            "dom": '<"mb-4"l>rt<"d-flex justify-content-between align-items-center mt-4 border-top pt-3"ip><"clear">',
-            "drawCallback": function(settings) {
-                var api = this.api();
-                var searchValue = api.search();
-                if (searchValue.length > 0 && api.rows({filter: 'applied'}).count() === 0) {
-                        $('#searchAlert').slideDown();
-                        $('#searchText').text(searchValue);
-                } else {
-                        $('#searchAlert').slideUp();
-                }
-            }
-        });
-
-        $('#customSearch').on('keyup change input', function() {
-            var val = $(this).val();
-            var cleanVal = val.replace(/'/g, '-').replace(/´/g, '-').trim();
-            if (val !== cleanVal) $(this).val(cleanVal);
-            if (cleanVal == "") $('#searchAlert').slideUp();
-            table.search(cleanVal).draw();
-        });
-
-        $('#btnGenerateQR').click(function() {
-            var randomCode = 'GEN-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
-            $('#inputCode').val(randomCode);
-        });
-        $('#btnGenerateShort').click(function() {
-            var randomShort = 'ART-' + Math.floor(100 + Math.random() * 900);
-            $('#inputShortCode').val(randomShort);
-            $('input[name="description"]').focus();
-        });
-    });
-
-    // ------------------------------------------------
-    // LÓGICA DE BORRADO MASIVO
-    // ------------------------------------------------
+    
     function confirmarBorradoMasivo() {
-        // 1. Detectamos qué filtro está activo actualmente
-        // (La variable 'currentFilter' ya existe en tu código anterior)
-        let mensaje = "";
-        let titulo = "";
+        let mensaje = "Se eliminarán TODOS los productos que coincidan con el filtro actual.";
+        let titulo = "¿Estás seguro?";
+        
+        if (currentFilter === 'all') titulo = '¿VACIAR TODO EL INVENTARIO?';
+        else if (currentFilter === 'tools') { titulo = '¿Borrar todas las Herramientas?'; mensaje = 'Se eliminarán solo los ítems de categoría HERRAMIENTA.'; }
+        else if (currentFilter === 'consumables') { titulo = '¿Borrar todos los Consumibles?'; mensaje = 'Se eliminarán solo los ítems de categoría CONSUMIBLE.'; }
+        else if (currentFilter === 'low') { titulo = '¿Borrar Stock Bajo?'; mensaje = 'Se eliminarán todos los productos que tengan menos de 5 unidades.'; }
 
-        if (currentFilter === 'all') {
-            titulo = '¿VACIAR TODO EL INVENTARIO?';
-            mensaje = '¡Cuidado! Se eliminarán TODOS los productos registrados. No podrás deshacer esto.';
-        } else if (currentFilter === 'tools') {
-            titulo = '¿Borrar todas las Herramientas?';
-            mensaje = 'Se eliminarán solo los ítems de categoría HERRAMIENTA.';
-        } else if (currentFilter === 'consumables') {
-            titulo = '¿Borrar todos los Consumibles?';
-            mensaje = 'Se eliminarán solo los ítems de categoría CONSUMIBLE.';
-        } else if (currentFilter === 'low') {
-            titulo = '¿Borrar Stock Bajo?';
-            mensaje = 'Se eliminarán todos los productos que tengan menos de 5 unidades.';
-        }
-
-        // 2. Alerta de Seguridad Máxima
         Swal.fire({
             title: titulo,
             text: mensaje,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#f5365c', // Rojo peligro
+            confirmButtonColor: '#f5365c',
             cancelButtonColor: '#2dce89',
             confirmButtonText: 'Sí, borrar datos',
-            cancelButtonText: 'Cancelar',
-            reverseButtons: true
+            cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                // 3. Crear formulario invisible y enviar
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '/inventory/delete-bulk';
-                
                 const input = document.createElement('input');
                 input.type = 'hidden';
                 input.name = 'filter';
-                input.value = currentFilter; // Enviamos el filtro activo
-                
+                input.value = currentFilter; 
                 form.appendChild(input);
                 document.body.appendChild(form);
                 form.submit();
             }
         });
     }
-
-    // Agregar alerta de éxito para el borrado masivo (en la sección de alertas existente)
-    if (alertType === 'bulk_deleted') {
-        Swal.fire({ icon: 'success', title: 'Limpieza Completada', text: 'Los registros seleccionados han sido eliminados.', confirmButtonColor: '#5e72e4', timer: 3000 });
-        window.history.replaceState(null, null, window.location.pathname);
-    }
-
-    if (alertType === 'stock_updated') {
-        Swal.fire({ icon: 'success', title: 'Stock Actualizado', text: 'Las cantidades han sido sumadas al inventario.', confirmButtonColor: '#2dce89', timer: 3000 });
-        window.history.replaceState(null, null, window.location.pathname);
-    }
-
-    if (alertType === 'imported') {
-        Swal.fire({ 
-            icon: 'success', 
-            title: 'Importación Exitosa', 
-            text: 'Los productos del Excel se han cargado al sistema.', 
-            confirmButtonColor: '#5e72e4' 
-        });
-        window.history.replaceState(null, null, window.location.pathname);
-    }
-
   </script>
 
 </body>

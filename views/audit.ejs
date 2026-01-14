@@ -16,6 +16,12 @@
 
     <div class="container-fluid py-4">
       
+      <div class="d-flex justify-content-start mb-3">
+          <a href="/inventory" class="btn btn-white btn-sm mb-0 shadow-sm me-2">
+              <i class="fas fa-arrow-left me-1"></i> Volver al Inventario
+          </a>
+      </div>
+
       <div class="row">
         <div class="col-md-5">
             <div class="card">
@@ -92,7 +98,8 @@
                     <div class="card-footer text-center">
                         <% if (stats.found > 0) { %>
                             <p class="text-sm text-muted mb-2">
-                                Se sumarán las cantidades detectadas al inventario actual. <br>
+                                Se sumarán las cantidades detectadas al inventario actual.
+                                <br>
                                 <span class="text-danger text-xs">Los códigos desconocidos serán ignorados.</span>
                             </p>
                             
