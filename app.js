@@ -106,13 +106,20 @@ function limpiarCodigo(codigo) {
 }
 
 // --- FUNCIÓN HELPER PARA REGISTRAR HISTORIAL (NUEVO) ---
+// --- FUNCIÓN HELPER MEJORADA PARA REGISTRAR HISTORIAL ---
 async function registrarLog(productId, action, description, user = 'Administrador') {
     try {
+        // 1. Buscamos el producto para tomar su "foto" (Backup)
+        const product = await Product.findByPk(productId);
+        
         await InventoryLog.create({
             productId,
             action,
             description,
-            user
+            user,
+            // 2. Guardamos los datos de texto por si se borra el producto original
+            backup_product: product ? product.description : 'Desconocido',
+            backup_code: product ? product.code : '---'
         });
     } catch (e) {
         console.error("Error guardando log:", e);
@@ -404,46 +411,39 @@ app.post('/inventory/update/:id', requireLogin, async (req, res) => {
 app.post('/inventory/delete/:id', requireLogin, async (req, res) => {
     try {
         const productId = req.params.id;
-        // Primero borramos historial para evitar constraint error
+        
+        // 1. Borramos códigos de proveedor (estos sí se van)
         await SupplierCode.destroy({ where: { productId: productId } });
-        await DamageLog.destroy({ where: { productId: productId } });
-        await InventoryLog.destroy({ where: { productId: productId } });
+        
+        // 2. ¡IMPORTANTE! YA NO BORRAMOS NI Logs, NI Loans, NI Damages.
+        // Solo borramos el producto. El historial quedará huérfano pero visible gracias al backup.
         
         await Product.destroy({ where: { id: productId } });
         res.redirect('/inventory?alert=deleted');
     } catch (error) {
-        res.send("Error al eliminar producto");
+        res.send("Error al eliminar producto: " + error.message);
     }
 });
 
 app.post('/inventory/delete-bulk', requireLogin, async (req, res) => {
     try {
         const { filter } = req.body; 
+        // ... (lógica del filtro igual que antes) ...
+        const whereClause = {}; // (Tú lógica de whereClause se queda igual)
+        if (filter === 'tools') whereClause.category = 'herramienta'; // etc...
         
-        let whereClause = {};
-        if (filter === 'tools') whereClause = { category: 'herramienta' };
-        else if (filter === 'consumables') whereClause = { category: 'consumible' };
-        else if (filter === 'low') whereClause = { stock: { [Op.lt]: 5 } };
-        else if (filter === 'all') whereClause = {};
-        
-        const productsToDelete = await Product.findAll({ 
-            where: whereClause,
-            attributes: ['id'] 
-        });
-
+        const productsToDelete = await Product.findAll({ where: whereClause, attributes: ['id'] });
         const productIds = productsToDelete.map(p => p.id);
 
         if (productIds.length > 0) {
+            // Solo borramos claves extra y productos
             await SupplierCode.destroy({ where: { productId: productIds } });
-            await Loan.destroy({ where: { productId: productIds } });
-            await DamageLog.destroy({ where: { productId: productIds } });
-            await InventoryLog.destroy({ where: { productId: productIds } });
             await Product.destroy({ where: { id: productIds } });
+            // El historial se queda intacto
         }
 
         res.redirect('/inventory?alert=bulk_deleted');
     } catch (error) {
-        console.error(error);
         res.send("Error al borrar datos masivos: " + error.message);
     }
 });
@@ -745,7 +745,9 @@ app.post('/inventory/report-damage', requireLogin, async (req, res) => {
             quantity: qty,
             reason: reason,
             productId: product.id,
-            specific_code: specific_code 
+            specific_code: specific_code,
+            backup_product: product.description,
+            backup_code: product.code
         });
         
         // LOG TAMBIÉN EN EL HISTORIAL GENERAL

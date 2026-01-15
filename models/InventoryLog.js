@@ -18,7 +18,9 @@ const InventoryLog = sequelize.define('InventoryLog', {
     date: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
-    }
+    },
+    backup_product: { type: DataTypes.STRING }, // Guardará el nombre
+    backup_code: { type: DataTypes.STRING }
 });
 
 module.exports = InventoryLog;

@@ -119,21 +119,19 @@
                     %>
                       <tr>
                         <td>
-                          <div class="d-flex px-3 py-1">
-                            <div class="d-flex flex-column justify-content-center">
-                                <% if(log.Product) { %>
-                                    <h6 class="mb-0 text-sm"><%= log.Product.description %></h6>
-                                    <p class="text-xs text-secondary mb-0 font-weight-bold">
-                                        <i class="fas fa-barcode me-1"></i> <%= log.Product.code %>
-                                    </p>
-                                <% } else { %>
-                                    <h6 class="mb-0 text-sm text-danger">Producto Eliminado</h6>
-                                    <p class="text-xs text-secondary mb-0">ID Original: <%= log.productId %></p>
-                                <% } %>
-                            </div>
-                          </div>
+                            <% if (log.Product) { %>
+                                <h6 class="mb-0 text-sm"><%= log.Product.description %></h6>
+                                <p class="text-xs font-weight-bold text-primary mb-0">
+                                    <i class="fas fa-qrcode me-1"></i> <%= log.Product.code %>
+                                </p>
+                            <% } else { %>
+                                <h6 class="mb-0 text-sm text-muted"><%= log.backup_product || 'Producto Eliminado' %></h6>
+                                <p class="text-xs text-secondary mb-0">
+                                    <i class="fas fa-history me-1"></i> <%= log.backup_code || '---' %> (Histórico)
+                                </p>
+                            <% } %>
                         </td>
-                        
+                                                
                         <td class="align-middle text-center">
                             <% if(empleadoNombre !== "N/A (SISTEMA)") { %>
                                 <span class="badge badge-sm <%= badgeClass %>" style="opacity: 0.8;">

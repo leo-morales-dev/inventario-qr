@@ -18,7 +18,9 @@ const DamageLog = sequelize.define('DamageLog', {
     date: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
-    }
+    },
+    backup_product: { type: DataTypes.STRING },
+    backup_code: { type: DataTypes.STRING }
 });
 
 module.exports = DamageLog;
