@@ -50,35 +50,43 @@
             <div class="card-header pb-2">
               <h6>Registro de Movimientos</h6>
               
-              <div class="form-group mb-3 mt-2">
+              <div class="form-group mb-2 mt-2">
                 <div class="input-group">
                   <span class="input-group-text"><i class="fas fa-search"></i></span>
-                  <input type="text" class="form-control" id="searchInput" placeholder="Buscar en el historial...">
+                  <input type="text" class="form-control" id="searchInput" placeholder="Buscar por producto, empleado o descripción...">
                 </div>
               </div>
 
+              <div class="d-flex align-items-center mb-3 flex-wrap" style="gap: 10px;">
+                  <div class="input-group input-group-sm" style="width: auto;">
+                      <span class="input-group-text bg-gray-200 font-weight-bold">Desde:</span>
+                      <input type="date" class="form-control" id="dateStart">
+                  </div>
+                  <div class="input-group input-group-sm" style="width: auto;">
+                      <span class="input-group-text bg-gray-200 font-weight-bold">Hasta:</span>
+                      <input type="date" class="form-control" id="dateEnd">
+                  </div>
+                  <button class="btn btn-sm btn-icon btn-outline-secondary mb-0" id="clearDates" type="button" title="Limpiar Fechas">
+                      <span class="btn-inner--icon"><i class="fas fa-eraser"></i></span>
+                  </button>
+              </div>
+
               <div class="d-flex flex-wrap align-items-center" id="filterButtonsContainer">
-                  
                   <button class="btn btn-sm btn-outline-secondary filter-btn active" data-filter="all">
                       <i class="fas fa-list"></i> General
                   </button>
-                  
                   <button class="btn btn-sm btn-outline-info filter-btn" data-filter="IMPORTACIÓN">
                       <i class="fas fa-file-import"></i> Importación
                   </button>
-
                   <button class="btn btn-sm btn-outline-success filter-btn" data-filter="ALTA MANUAL">
                       <i class="fas fa-plus-circle"></i> Alta Manual
                   </button>
-
                   <button class="btn btn-sm btn-outline-warning filter-btn" data-filter="PRÉSTAMO">
                       <i class="fas fa-hand-holding"></i> Préstamo
                   </button>
-                  
                   <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="DEVOLUCIÓN">
                       <i class="fas fa-undo"></i> Devolución
                   </button>
-                  
                   <button class="btn btn-sm btn-outline-danger filter-btn" data-filter="CONSUMO">
                       <i class="fas fa-box-open"></i> Consumo
                   </button>
@@ -100,21 +108,19 @@
                   </thead>
                   <tbody id="historyTableBody">
                     <% logs.forEach(log => { 
-                        // LÓGICA PARA EXTRAER EMPLEADO DEL TEXTO
+                        // LÓGICA DE BADGES
                         let empleadoNombre = "N/A (SISTEMA)";
                         let badgeClass = "bg-gradient-secondary";
                         
-                        // Intentamos buscar nombres comunes en la descripción
                         if (log.description.includes('Prestado a')) {
                             empleadoNombre = log.description.split('Prestado a')[1].trim();
-                            badgeClass = "bg-gradient-warning"; // Naranja para préstamos
+                            badgeClass = "bg-gradient-warning"; 
                         } else if (log.description.includes('Entregado a')) {
                             empleadoNombre = log.description.split('Entregado a')[1].trim();
-                            badgeClass = "bg-gradient-danger"; // Rojo para consumo
+                            badgeClass = "bg-gradient-danger"; 
                         } else if (log.description.includes('Devuelto por')) {
-                            // A veces la devolución dice "Devuelto por empleado", intentamos limpiar
                             empleadoNombre = log.description.split('Devuelto por')[1].trim().replace('.', '');
-                            badgeClass = "bg-gradient-primary"; // Morado para devolución
+                            badgeClass = "bg-gradient-primary"; 
                         }
                     %>
                       <tr>
@@ -131,7 +137,7 @@
                                 </p>
                             <% } %>
                         </td>
-                                                
+                                                  
                         <td class="align-middle text-center">
                             <% if(empleadoNombre !== "N/A (SISTEMA)") { %>
                                 <span class="badge badge-sm <%= badgeClass %>" style="opacity: 0.8;">
@@ -161,7 +167,7 @@
                         </td>
 
                         <td class="align-middle text-center">
-                            <h6 class="mb-0 text-xs"><%= log.fechaFormat %></h6>
+                            <h6 class="mb-0 text-xs date-cell"><%= log.fechaFormat %></h6>
                             <p class="text-xxs text-secondary mb-0"><%= log.horaFormat %></p>
                         </td>
                       </tr>
@@ -193,32 +199,62 @@
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const searchInput = document.getElementById('searchInput');
+        const dateStartInput = document.getElementById('dateStart');
+        const dateEndInput = document.getElementById('dateEnd');
+        const clearDatesBtn = document.getElementById('clearDates');
         const filterButtons = document.querySelectorAll('.filter-btn');
         const tableRows = document.querySelectorAll('#historyTableBody tr');
+        
         let currentFilter = 'all';
+
+        // Función para convertir fecha DD/MM/AAAA a objeto Date de JS
+        function parseTableDate(dateStr) {
+            if(!dateStr) return null;
+            const parts = dateStr.trim().split('/');
+            // new Date(año, mes-1, dia)
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
 
         function applyFilters() {
             const searchText = searchInput.value.toLowerCase();
+            
+            // Obtenemos fechas del filtro
+            const startDate = dateStartInput.value ? new Date(dateStartInput.value) : null;
+            const endDate = dateEndInput.value ? new Date(dateEndInput.value) : null;
+            
+            // Ajuste de zona horaria simple: asegurar comparación correcta
+            if(startDate) startDate.setHours(0,0,0,0);
+            if(endDate) endDate.setHours(23,59,59,999);
 
             tableRows.forEach(row => {
                 const rowText = row.textContent.toLowerCase();
                 
-                // La columna de acción es la índice 2 (0, 1, 2)
-                const actionCellText = row.cells[2].textContent.trim();
-
+                // 1. FILTRO DE TEXTO
                 const matchesSearch = rowText.includes(searchText);
                 
+                // 2. FILTRO DE CATEGORÍA
+                // La columna de acción es la índice 2
+                const actionCellText = row.cells[2].textContent.trim();
                 let matchesButton = false;
                 if (currentFilter === 'all') {
                     matchesButton = true;
                 } else if (currentFilter === 'IMPORTACIÓN') {
-                    // Importación cubre XML y EXCEL
                     matchesButton = actionCellText.includes('XML') || actionCellText.includes('EXCEL') || actionCellText.includes('IMPORTACIÓN');
                 } else {
                     matchesButton = actionCellText === currentFilter;
                 }
 
-                if (matchesSearch && matchesButton) {
+                // 3. FILTRO DE FECHA (NUEVO)
+                // Buscamos la fecha en la celda 4, dentro del h6 con clase date-cell
+                const dateText = row.querySelector('.date-cell').textContent;
+                const rowDate = parseTableDate(dateText);
+                
+                let matchesDate = true;
+                if (startDate && rowDate < startDate) matchesDate = false;
+                if (endDate && rowDate > endDate) matchesDate = false;
+
+                // MOSTRAR SOLO SI CUMPLE LAS 3 CONDICIONES
+                if (matchesSearch && matchesButton && matchesDate) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -226,7 +262,17 @@
             });
         }
 
+        // Eventos
         searchInput.addEventListener('keyup', applyFilters);
+        dateStartInput.addEventListener('change', applyFilters);
+        dateEndInput.addEventListener('change', applyFilters);
+
+        // Botón limpiar fechas
+        clearDatesBtn.addEventListener('click', function() {
+            dateStartInput.value = '';
+            dateEndInput.value = '';
+            applyFilters();
+        });
 
         filterButtons.forEach(button => {
             button.addEventListener('click', function() {

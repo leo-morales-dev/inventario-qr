@@ -159,6 +159,7 @@ app.get('/logout', (req, res) => {
 });
 
 // --- DASHBOARD ---
+// --- DASHBOARD (ACTUALIZADO CON GRÁFICAS) ---
 app.get('/', requireLogin, async (req, res) => {
     try {
         const products = await Product.findAll();
@@ -167,11 +168,76 @@ app.get('/', requireLogin, async (req, res) => {
         const totalTools = products.filter(p => p.category === 'herramienta').length;
         const totalConsumables = products.filter(p => p.category === 'consumible').length;
         const lowStock = products.filter(p => p.stock < 5).length;
+        
+        // Tabla de Actividad Reciente
         const recentLoans = await Loan.findAll({
             limit: 5,
             order: [['date_out', 'DESC']],
             include: [Product, Employee]
         });
+
+        // --- 1. DATOS PARA GRÁFICA DE BARRAS (Top 5 Empleados) ---
+        // Buscamos todos los préstamos activos y contamos por empleado
+        const activeLoansList = await Loan.findAll({
+            where: { status: 'prestado' },
+            include: [Employee]
+        });
+        
+        const employeeLoanCounts = {};
+        
+        // REEMPLAZAR EL FOREACH ANTIGUO POR ESTE MEJORADO:
+        activeLoansList.forEach(loan => {
+            let name = 'Desconocido';
+            
+            // 1. Intentamos obtener el nombre de la relación viva
+            if (loan.Employee && loan.Employee.name) {
+                name = loan.Employee.name;
+            } 
+            // 2. Si falla, usamos el respaldo que guardamos en el paso 2
+            else if (loan.backup_employee) {
+                name = loan.backup_employee;
+            }
+
+            employeeLoanCounts[name] = (employeeLoanCounts[name] || 0) + 1;
+        });
+
+        // Convertimos a array, ordenamos descendente y tomamos el Top 5
+        const topEmployees = Object.entries(employeeLoanCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        // --- 2. DATOS PARA GRÁFICA DE LÍNEA (Movimientos Últimos 7 Días) ---
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        // Buscamos en el Historial (InventoryLog)
+        const recentLogs = await InventoryLog.findAll({
+            where: {
+                createdAt: { [Op.gte]: sevenDaysAgo }
+            },
+            attributes: ['createdAt']
+        });
+
+        const movementsMap = {};
+        // Inicializamos los últimos 7 días en 0
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toLocaleDateString('es-MX'); // ej: "27/10/2023"
+            movementsMap[dateStr] = 0;
+        }
+
+        // Llenamos con datos reales
+        recentLogs.forEach(log => {
+            const dateStr = new Date(log.createdAt).toLocaleDateString('es-MX');
+            if (movementsMap[dateStr] !== undefined) {
+                movementsMap[dateStr]++;
+            }
+        });
+
+        const movementsLabels = Object.keys(movementsMap); // Fechas
+        const movementsData = Object.values(movementsMap); // Cantidades
 
         res.render('dashboard', { 
             page: 'dashboard',
@@ -183,10 +249,19 @@ app.get('/', requireLogin, async (req, res) => {
                 lowStock,
                 totalEmployees: employeesCount
             },
-            recentLoans: recentLoans
+            recentLoans: recentLoans,
+            // NUEVO: Enviamos los datos procesados a la vista
+            charts: {
+                topEmployees: topEmployees,
+                movements: {
+                    labels: movementsLabels,
+                    data: movementsData
+                }
+            }
         });
 
     } catch (error) {
+        console.error(error);
         res.send("Error al cargar dashboard: " + error.message);
     }
 });
@@ -920,16 +995,14 @@ app.post('/loans/add', requireLogin, async (req, res) => {
         const returnDate = product.category === 'consumible' ? new Date() : null;
 
         await Loan.create({
-            quantity: 1, 
-            status: newStatus, 
-            date_out: new Date(), 
-            date_return: returnDate,
-            productId: product.id, 
+            productId: product.id,
             employeeId: employee.id,
-            // Respaldos
-            backup_product: product.description, 
-            backup_employee: employee.name, 
-            backup_code: product.code          
+            quantity: 1,
+            
+            // --- AGREGAR ESTOS CAMPOS DE RESPALDO ---
+            backup_product: product.description,
+            backup_code: product.code,
+            backup_employee: employee.name // <--- ¡Esto es lo que arregla el "Desconocido"!
         });
 
         await product.decrement('stock');
@@ -1005,7 +1078,24 @@ app.get('/history', requireLogin, async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`--- Servidor corriendo en http://localhost:${PORT} ---`);
-});
+// ... (Todo tu código anterior de app.js) ...
+
+// BUSCA EL FINAL DEL ARCHIVO Y REEMPLAZA EL INICIO DEL SERVIDOR CON ESTO:
+
+// 1. Limpiamos la tabla trabada
+sequelize.query("DROP TABLE IF EXISTS employees_backup")
+    .then(() => {
+        console.log("--- Limpieza automática: Tabla backup eliminada ---");
+        
+        // 2. Ahora sí sincronizamos
+        return sequelize.sync({ force: false });
+    })
+    .then(() => {
+        // 3. Arrancamos el servidor
+        app.listen(3000, () => {
+            console.log('Servidor conectado y corriendo en http://localhost:3000');
+        });
+    })
+    .catch(error => {
+        console.log('Error al iniciar servidor:', error);
+    });

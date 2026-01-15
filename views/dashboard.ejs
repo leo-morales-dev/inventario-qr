@@ -3,6 +3,20 @@
 
 <head>
   <%- include('partials/head') %>
+  <style>
+    .avatar-initials-sm {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(310deg, #5e72e4 0%, #825ee4 100%);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+  </style>
 </head>
 
 <body class="g-sidenav-show bg-gray-100">
@@ -21,7 +35,6 @@
     <div class="container-fluid py-4">
       
       <div class="row">
-        
         <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
           <div class="card">
             <div class="card-body p-3">
@@ -125,41 +138,78 @@
 
       <div class="row mt-4">
         
-        <div class="col-lg-7 mb-lg-0 mb-4">
+        <div class="col-lg-4 mb-lg-0 mb-4">
           <div class="card z-index-2 h-100">
             <div class="card-header pb-0 pt-3 bg-transparent">
-              <h6 class="text-capitalize">Resumen de Inventario</h6>
+              <h6 class="text-capitalize">Distribución</h6>
               <p class="text-sm mb-0">
-                <i class="fa fa-arrow-up text-success"></i>
-                <span class="font-weight-bold">Herramientas vs Consumibles</span>
+                <i class="fa fa-chart-pie text-success"></i> Herramientas vs Consumibles
               </p>
             </div>
             <div class="card-body p-3">
               <div class="chart">
-                <canvas id="chart-inventory" class="chart-canvas" height="300"></canvas>
+                <canvas id="chart-inventory" class="chart-canvas" height="250"></canvas>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="col-lg-5">
+        <div class="col-lg-5 mb-lg-0 mb-4">
+          <div class="card h-100">
+            <div class="card-header pb-0 pt-3 bg-transparent">
+              <h6 class="text-capitalize">Top 5 Préstamos Activos</h6>
+              <p class="text-sm mb-0">
+                <i class="fa fa-list-ol text-primary"></i> Personal con más material
+              </p>
+            </div>
+            <div class="card-body p-3">
+              
+              <% if (charts.topEmployees && charts.topEmployees.length > 0) { %>
+                <ul class="list-group">
+                  <% charts.topEmployees.forEach((emp, index) => { %>
+                    <li class="list-group-item border-0 d-flex justify-content-between ps-0 mb-2 border-radius-lg">
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-initials-sm me-3 shadow-sm">
+                            <%= emp.name.charAt(0).toUpperCase() %>
+                        </div>
+                        <div class="d-flex flex-column">
+                          <h6 class="mb-1 text-dark text-sm"><%= emp.name %></h6>
+                          <span class="text-xs">
+                            <%= index === 0 ? '🥇 Líder' : 'Rank #' + (index + 1) %>
+                          </span>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-center text-danger text-gradient text-sm font-weight-bold ms-2">
+                        <%= emp.count %> Items
+                      </div>
+                    </li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <div class="text-center py-4">
+                  <p class="text-sm text-muted">No hay préstamos activos.</p>
+                </div>
+              <% } %>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3">
           <div class="card h-100 p-3">
             <div class="overflow-hidden position-relative border-radius-lg bg-cover h-100" style="background-image: url('/assets/img/card-tools.jpg');">
               <span class="mask bg-gradient-dark"></span>
               <div class="card-body position-relative z-index-1 d-flex flex-column h-100 p-3">
-                <h5 class="text-white font-weight-bolder mb-4 pt-2">¿Qué deseas hacer hoy?</h5>
-                
+                <h5 class="text-white font-weight-bolder mb-4 pt-2">Acciones Rápidas</h5>
                 <a href="/loans" class="btn btn-white mb-3 text-primary font-weight-bold">
-                  <i class="fas fa-exchange-alt text-primary me-2"></i> Nuevo Préstamo / Devolución
+                  <i class="fas fa-exchange-alt text-primary me-2"></i> Préstamos
                 </a>
-                
                 <a href="/inventory" class="btn btn-outline-white mb-3 font-weight-bold">
-                  <i class="fas fa-plus-circle text-white me-2"></i> Registrar Material Nuevo
+                  <i class="fas fa-boxes text-white me-2"></i> Inventario
                 </a>
-
-                <p class="text-white text-sm mt-auto mb-0">
-                  Sistema de Control Inteligente v2.0
-                </p>
+                <a href="/employees" class="btn btn-link text-white font-weight-bold p-0">
+                    Ver Personal <i class="fas fa-arrow-right text-xs ms-1"></i>
+                </a>
               </div>
             </div>
           </div>
@@ -170,14 +220,14 @@
         <div class="col-12">
           <div class="card mb-4">
             <div class="card-header pb-0">
-              <h6>Últimos Movimientos (Tiempo Real)</h6>
+              <h6>Últimos Movimientos (Detalle)</h6>
             </div>
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
                 <table class="table align-items-center mb-0">
                   <thead>
                     <tr>
-                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Empleado / Herramienta</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Item</th>
                       <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Acción</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Estado</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha</th>
@@ -192,13 +242,16 @@
                                     <h6 class="mb-0 text-sm">
                                         <%= loan.Product ? loan.Product.description : (loan.backup_product || 'Item Borrado') %>
                                     </h6>
+                                    <p class="text-xs text-secondary mb-0">
+                                        <%= loan.Employee ? loan.Employee.name : (loan.backup_employee || 'Empleado') %>
+                                    </p>
                                 </div>
                             </div>
                         </td>
                         <td>
                           <p class="text-xs font-weight-bold mb-0">
-                            <% if(loan.status === 'prestado') { %> Salida de Almacén <% } %>
-                            <% if(loan.status === 'devuelto') { %> Retorno de Material <% } %>
+                            <% if(loan.status === 'prestado') { %> Salida <% } %>
+                            <% if(loan.status === 'devuelto') { %> Devolución <% } %>
                             <% if(loan.status === 'consumido') { %> Consumo <% } %>
                           </p>
                         </td>
@@ -218,11 +271,9 @@
                         </td>
                       </tr>
                     <% }) %>
-                    
                     <% if(recentLoans.length === 0) { %>
                         <tr><td colspan="4" class="text-center py-4">No hay actividad reciente.</td></tr>
                     <% } %>
-
                   </tbody>
                 </table>
               </div>
@@ -249,66 +300,40 @@
   <%- include('partials/scripts') %>
 
   <script>
-    var ctx1 = document.getElementById("chart-inventory").getContext("2d");
-    
-    var totalTools = Number('<%= stats.totalTools %>');
-    var totalConsumables = Number('<%= stats.totalConsumables %>');
+    // --- 1. GRÁFICA DONA (Inventario) ---
+    if(document.getElementById("chart-inventory")) {
+        var ctx1 = document.getElementById("chart-inventory").getContext("2d");
+        var totalTools = Number('<%= stats.totalTools %>');
+        var totalConsumables = Number('<%= stats.totalConsumables %>');
 
-    new Chart(ctx1, {
-      type: "doughnut",
-      data: {
-        labels: ["Herramientas", "Consumibles"],
-        datasets: [{
-          label: "Cantidad",
-          weight: 9,
-          cutout: 60, 
-          tension: 0.9,
-          pointRadius: 2,
-          borderWidth: 2,
-          backgroundColor: ['#5e72e4', '#2dce89'], 
-          borderColor: ['#ffffff', '#ffffff'],     
-          hoverBackgroundColor: ['#324cdd', '#24a46d'], 
-          data: [totalTools, totalConsumables],
-          fill: false
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: true,
-            position: 'bottom',
-            labels: {
-                padding: 20,
-                font: {
-                    size: 12,
-                    family: "Open Sans",
-                    style: 'bold',
-                }
-            }
+        new Chart(ctx1, {
+          type: "doughnut",
+          data: {
+            labels: ["Herramientas", "Consumibles"],
+            datasets: [{
+              label: "Cantidad",
+              weight: 9,
+              cutout: 60, 
+              tension: 0.9,
+              pointRadius: 2,
+              borderWidth: 2,
+              backgroundColor: ['#5e72e4', '#2dce89'], 
+              borderColor: ['#ffffff', '#ffffff'],     
+              hoverBackgroundColor: ['#324cdd', '#24a46d'], 
+              data: [totalTools, totalConsumables],
+              fill: false
+            }],
           },
-          tooltip: {
-            enabled: true,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            titleFont: { size: 13 },
-            bodyFont: { size: 13 },
-            callbacks: {
-                label: function(context) {
-                    var label = context.label || '';
-                    var value = context.parsed;
-                    return ' ' + label + ': ' + value + ' items';
-                }
-            }
-          }
-        },
-        interaction: {
-          intersect: false,
-          mode: 'nearest',
-        },
-      },
-    });
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: true, position: 'bottom' }
+            },
+            interaction: { intersect: false, mode: 'nearest' },
+          },
+        });
+    }
   </script>
-
 </body>
 </html>
