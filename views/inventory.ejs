@@ -207,6 +207,9 @@
                 <form id="formImportXML" action="/inventory/import-xml" method="POST" enctype="multipart/form-data" style="display: none;">
                     <input type="file" name="xmlFile" id="xmlInput" accept=".xml" onchange="document.getElementById('formImportXML').submit()">
                 </form>
+                <form id="formBorradoMasivo" action="/inventory/delete-bulk" method="POST" style="display: none;">
+                    <input type="hidden" name="filter" id="inputFilterDelete">
+                </form>
             </div>
 
             <div class="card-body">
@@ -409,7 +412,6 @@
   </main>
 
   <form id="formEliminar" method="POST" style="display: none;"></form>
-
   <div class="modal fade" id="modalCodigos" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
       <div class="modal-content">
@@ -774,39 +776,40 @@
     }
     
     function confirmarBorradoMasivo() {
-        let mensaje = "Se eliminarán TODOS los productos que coincidan con el filtro actual.";
-        let titulo = "¿Estás seguro?";
-        
-        if (currentFilter === 'all') titulo = '¿VACIAR TODO EL INVENTARIO?';
-        else if (currentFilter === 'tools') { titulo = '¿Borrar todas las Herramientas?'; mensaje = 'Se eliminarán solo los ítems de categoría HERRAMIENTA.'; }
-        else if (currentFilter === 'consumables') { titulo = '¿Borrar todos los Consumibles?'; mensaje = 'Se eliminarán solo los ítems de categoría CONSUMIBLE.'; }
-        else if (currentFilter === 'low') { titulo = '¿Borrar Stock Bajo?'; mensaje = 'Se eliminarán todos los productos que tengan menos de 5 unidades.'; }
+        // 1. Detectar filtro actual
+        let tipoBorrado = "TODO EL INVENTARIO";
+        // Usamos la variable global currentFilter que ya usas para los botones
+        let filtro = currentFilter || 'all'; 
+
+        // Texto de la alerta
+        if (filtro === 'tools') tipoBorrado = "SOLO LAS HERRAMIENTAS";
+        else if (filtro === 'consumables') tipoBorrado = "SOLO LOS CONSUMIBLES";
+        else if (filtro === 'low') tipoBorrado = "SOLO PRODUCTOS CON STOCK BAJO";
 
         Swal.fire({
-            title: titulo,
-            text: mensaje,
+            title: '¿Borrar Masivamente?',
+            html: `Estás a punto de eliminar: <br><strong>${tipoBorrado}</strong>.<br>¡Esta acción es irreversible!`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#f5365c',
             cancelButtonColor: '#2dce89',
             confirmButtonText: 'Sí, borrar datos',
-            cancelButtonText: 'Cancelar'
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/inventory/delete-bulk';
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'filter';
-                input.value = currentFilter; 
-                form.appendChild(input);
-                document.body.appendChild(form);
-                form.submit();
+                
+                // --- AQUÍ ESTABA EL ERROR ---
+                // Antes de enviar, debemos llenar el input oculto con el valor del filtro
+                document.getElementById('inputFilterDelete').value = filtro; 
+                // -----------------------------
+
+                document.getElementById('formBorradoMasivo').submit();
             }
         });
     }
-  </script>
+    
+    </script>
 
 </body>
 </html>

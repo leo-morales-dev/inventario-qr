@@ -30,7 +30,8 @@ const InventoryLog = require('./models/InventoryLog'); // <--- 1. NUEVO MODELO H
 // Configuración básica
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // --- CONFIGURACIÓN DE SESIÓN ---
 app.use(session({
@@ -200,67 +201,121 @@ app.get('/inventory/audit', requireLogin, (req, res) => {
 });
 
 // 2. Procesar datos del cuadro de texto
+// --- RUTA: PROCESAR ESCANEO (VISTA PREVIA) ---
 app.post('/inventory/audit-process', requireLogin, async (req, res) => {
     try {
-        const rawData = req.body.rawData || '';
-        // Separar por líneas, limpiar espacios y quitar vacíos
-        const codes = rawData.split(/\r?\n/).map(c => c.trim()).filter(c => c !== '');
-        
-        // Contar ocurrencias (Frecuencia de cada código)
+        const { rawData } = req.body;
+
+        // 1. Validación básica
+        if (!rawData || rawData.trim() === '') {
+            // Si está vacío, recargamos la página avisando
+            return res.render('audit', { 
+                page: 'inventory', 
+                user: req.session.user,
+                preview: null, // Importante para que salga "Esperando datos"
+                alert: 'empty'
+            });
+        }
+
+        // 2. Procesar líneas (Separar por Enter)
+        // El regex /\r?\n/ maneja saltos de línea de Windows y Linux/Mac
+        const lines = rawData.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+
+        // 3. Contar ocurrencias y limpiar códigos
         const counts = {};
-        codes.forEach(c => { counts[c] = (counts[c] || 0) + 1; });
-        
-        const uniqueCodes = Object.keys(counts);
-        
-        // Buscar productos en la BD
-        const products = await Product.findAll({
-            where: {
-                [Op.or]: [
-                    { code: uniqueCodes },
-                    { short_code: uniqueCodes }
-                ]
+        lines.forEach(rawCode => {
+            // DOBLE SEGURIDAD: Reemplazamos comilla simple por guion aquí también
+            // y convertimos a mayúsculas por si acaso
+            const code = rawCode.replace(/'/g, '-').replace(/´/g, '-').toUpperCase();
+            
+            if (code) {
+                counts[code] = (counts[code] || 0) + 1;
             }
         });
-        
-        // Mapear resultados para la vista
-        const scannedItems = uniqueCodes.map(code => {
-            const product = products.find(p => p.code === code || p.short_code === code);
+
+        const uniqueCodes = Object.keys(counts);
+
+        // 4. Buscar en Base de Datos
+        // Buscamos todos los productos que coincidan con los códigos escaneados
+        const products = await Product.findAll({
+            where: {
+                code: { [Op.in]: uniqueCodes }
+            }
+        });
+
+        // 5. Armar objeto de Vista Previa (Preview)
+        // Cruzamos lo escaneado con lo encontrado en BD
+        const preview = uniqueCodes.map(code => {
+            const product = products.find(p => p.code === code);
             return {
                 code: code,
                 count: counts[code],
+                found: !!product,      // true si existe, false si no
                 product: product || null
             };
         });
-        
-        const found = scannedItems.filter(i => i.product).length;
-        const unknown = scannedItems.filter(i => !i.product).length;
-        
+
+        // 6. RENDERIZAR LA PANTALLA CON LOS DATOS
+        // Aquí estaba el problema: hay que enviar 'preview' a la vista
         res.render('audit', { 
-            page: 'inventory',
-            scannedItems,
-            stats: { found, unknown }
+            page: 'inventory', 
+            user: req.session.user,
+            preview: preview, // <--- ¡ESTA ES LA CLAVE!
+            rawData: rawData  // Opcional: por si quieres mantener el texto en el cuadro
         });
-        
-    } catch (e) { res.send("Error procesando datos: " + e.message); }
+
+    } catch (error) {
+        console.error("Error en audit-process:", error);
+        res.send("Error al procesar datos: " + error.message);
+    }
 });
 
 // 3. Confirmar y Guardar en BD
+// ==========================================
+// RUTA: CONFIRMAR Y GUARDAR STOCK MASIVO
+// ==========================================
 app.post('/inventory/audit-confirm', requireLogin, async (req, res) => {
     try {
-        const items = JSON.parse(req.body.validItems);
-        
+        const { jsonData } = req.body;
+
+        if (!jsonData) {
+            throw new Error("No se recibieron datos para procesar.");
+        }
+
+        const items = JSON.parse(jsonData);
+        let contadorActualizados = 0;
+
+        // Iteramos sobre cada item detectado
         for (const item of items) {
-            if (item.product) {
-                const prod = await Product.findByPk(item.product.id);
-                if (prod) {
-                    await prod.increment('stock', { by: item.count });
-                    // LOG
-                    await registrarLog(prod.id, 'ENTRADA MASIVA', `Se sumaron ${item.count} unidades (Carga Rápida).`);
+            if (item.found && item.count > 0) {
+                const product = await Product.findOne({ where: { code: item.code } });
+                
+                if (product) {
+                    // 1. Sumar al stock
+                    const stockAnterior = product.stock;
+                    product.stock += item.count;
+                    await product.save();
+
+                    // 2. Registrar en el Historial
+                    await registrarLog(
+                        product.id, 
+                        'ENTRADA MASIVA', 
+                        `Carga Scanner: +${item.count} unidades (Stock: ${stockAnterior} -> ${product.stock})`, 
+                        req.session.user.name
+                    );
+                    
+                    contadorActualizados++;
                 }
             }
         }
-        res.redirect('/inventory?alert=stock_updated');
-    } catch (e) { res.send("Error guardando: " + e.message); }
+
+        // Redirigir al inventario con éxito
+        res.redirect(`/inventory?alert=success&msg=Se actualizaron ${contadorActualizados} productos correctamente`);
+
+    } catch (error) {
+        console.error("Error en audit-confirm:", error);
+        res.send("Error al guardar datos: " + error.message);
+    }
 });
 
 // --- INVENTARIO ---
@@ -425,25 +480,38 @@ app.post('/inventory/delete/:id', requireLogin, async (req, res) => {
     }
 });
 
+// REEMPLAZA TODA ESTA RUTA EN app.js
+
 app.post('/inventory/delete-bulk', requireLogin, async (req, res) => {
     try {
         const { filter } = req.body; 
-        // ... (lógica del filtro igual que antes) ...
-        const whereClause = {}; // (Tú lógica de whereClause se queda igual)
-        if (filter === 'tools') whereClause.category = 'herramienta'; // etc...
         
+        const whereClause = {}; 
+
+        // --- LÓGICA COMPLETA DE FILTROS ---
+        if (filter === 'tools') {
+            whereClause.category = 'herramienta';
+        } else if (filter === 'consumables') {
+            whereClause.category = 'consumible';
+        } else if (filter === 'low') {
+            whereClause.stock = { [Op.lt]: 5 }; // Menor a 5
+        } 
+        // Si el filtro es 'all' o viene vacío, whereClause se queda {} y borra todo (correcto para "Todos")
+
         const productsToDelete = await Product.findAll({ where: whereClause, attributes: ['id'] });
         const productIds = productsToDelete.map(p => p.id);
 
         if (productIds.length > 0) {
-            // Solo borramos claves extra y productos
+            // 1. Borrar claves de proveedor
             await SupplierCode.destroy({ where: { productId: productIds } });
+            
+            // 2. Borrar productos (El historial se mantiene gracias al backup)
             await Product.destroy({ where: { id: productIds } });
-            // El historial se queda intacto
         }
 
         res.redirect('/inventory?alert=bulk_deleted');
     } catch (error) {
+        console.error(error);
         res.send("Error al borrar datos masivos: " + error.message);
     }
 });

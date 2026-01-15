@@ -2,6 +2,22 @@
 <html lang="es">
 <head>
   <%- include('partials/head') %>
+  <style>
+      /* Ajuste para quitar la línea del encabezado y dar espacio */
+      .table-borderless thead th {
+          border-bottom: none;
+      }
+      .table-borderless tbody td {
+          border-bottom: none;
+          padding-top: 15px;
+          padding-bottom: 15px;
+      }
+      /* Efecto hover suave */
+      .table-hover tbody tr:hover {
+          background-color: #f8f9fe;
+          border-radius: 10px;
+      }
+  </style>
 </head>
 <body class="g-sidenav-show bg-gray-100">
   
@@ -28,17 +44,59 @@
                 <div class="card-header pb-0">
                     <h6><i class="fas fa-dolly-flatbed"></i> Carga Masiva de Stock</h6>
                     <p class="text-sm mb-0">Usa el <b>Modo Inventario (Upload)</b> para sumar stock rápidamente.</p>
-                </div>
-                <div class="card-body">
-                    <form action="/inventory/audit-process" method="POST">
-                        <div class="form-group">
-                            <label>Vuelco de Datos (Escáner)</label>
-                            <textarea name="rawData" class="form-control" rows="15" placeholder="Haz clic aquí y escanea 'Upload Data'..." style="font-family: monospace;" required autofocus></textarea>
+                    
+                    <div class="text-center mt-3 pt-2 border-top">
+                        <span class="badge bg-gradient-secondary text-xxs mb-3">Configuración de Escáner</span>
+                        
+                        <div class="d-flex justify-content-center align-items-start flex-wrap">
+                            
+                            <div class="text-center mx-2 mb-2">
+                                <img src="/assets/img/scanner-modeI.jpg" 
+                                     alt="1. Activar Modo" 
+                                     class="img-fluid border border-radius-md shadow-sm mb-1" 
+                                     style="max-width: 100px; cursor: pointer;"
+                                     onclick="window.open(this.src, '_blank')">
+                                <p class="text-xxs text-secondary font-weight-bold mb-0">1. Activar Modo</p>
+                            </div>
+
+                            <div class="text-center mx-2 mb-2">
+                                <img src="/assets/img/scanner-modeC.jpg" 
+                                     alt="2. Cargar Datos" 
+                                     class="img-fluid border border-radius-md shadow-sm mb-1" 
+                                     style="max-width: 100px; cursor: pointer;"
+                                     onclick="window.open(this.src, '_blank')">
+                                <p class="text-xxs text-info font-weight-bold mb-0">2. Subir Datos</p>
+                            </div>
+
+                            <div class="text-center mx-2 mb-2">
+                                <img src="/assets/img/scanner-modeB.jpg" 
+                                     alt="3. Borrar Memoria" 
+                                     class="img-fluid border border-radius-md shadow-sm mb-1" 
+                                     style="max-width: 100px; cursor: pointer;"
+                                     onclick="window.open(this.src, '_blank')">
+                                <p class="text-xxs text-danger font-weight-bold mb-0">3. Borrar Todo</p>
+                            </div>
+
                         </div>
-                        <div class="text-end">
-                            <button type="submit" class="btn bg-gradient-info w-100">
-                                <i class="fas fa-search"></i> Analizar Códigos
-                            </button>
+                        
+                        <p class="text-xxs text-muted mt-1 mb-0 fst-italic">
+                            Sigue el orden: Activa el modo, escanea, sube los datos y limpia la memoria.
+                        </p>
+                    </div>
+                    </div>
+                <div class="card-body">
+                    <form id="formAudit" action="/inventory/audit-process" method="POST">
+                        <div class="form-group">
+                            <label for="rawData" class="form-control-label">Datos Escaneados</label>
+                            <textarea class="form-control font-monospace text-sm" 
+                                name="rawData" 
+                                id="rawData" 
+                                rows="10" 
+                                placeholder="Haz clic aquí y escanea tus productos..." 
+                                autofocus><%= typeof rawData !== 'undefined' ? rawData : '' %></textarea>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn bg-gradient-primary w-100 my-4 mb-2">Procesar Datos</button>
                         </div>
                     </form>
                 </div>
@@ -46,47 +104,54 @@
         </div>
 
         <div class="col-md-7">
-            <% if (typeof scannedItems !== 'undefined') { %>
-                <div class="card h-100">
-                    <div class="card-header pb-0 d-flex justify-content-between align-items-center">
-                        <h6>Vista Previa de Ingreso</h6>
-                        <div>
-                            <span class="badge bg-gradient-success">Encontrados: <%= stats.found %></span>
-                            <span class="badge bg-gradient-danger">Desconocidos: <%= stats.unknown %></span>
+            <% if (typeof preview !== 'undefined' && preview) { %>
+                <div class="card mb-4">
+                    <div class="card-header pb-0">
+                        <div class="d-flex justify-content-between">
+                            <h6>Resultado de la Lectura</h6>
+                            <span class="badge bg-gradient-primary">
+                                <%= preview.length %> Items Escaneados
+                            </span>
                         </div>
                     </div>
-                    
                     <div class="card-body px-0 pt-0 pb-2">
-                        <div class="table-responsive p-0" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table align-items-center mb-0">
+                        <div class="table-responsive p-0">
+                            <table class="table align-items-center table-borderless table-hover mb-0">
                                 <thead>
                                     <tr>
-                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Producto Detectado</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Código</th>
+                                        <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Producto Encontrado</th>
                                         <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Stock Actual</th>
-                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">A Sumar (+)</th>
+                                        <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">A Sumar</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <% scannedItems.forEach(item => { %>
+                                    <% preview.forEach(item => { %>
                                         <tr>
-                                            <td class="px-4">
-                                                <% if(item.product) { %>
-                                                    <h6 class="mb-0 text-sm text-primary"><%= item.product.description %></h6>
-                                                    <p class="text-xs text-secondary mb-0">Cód: <%= item.code %></p>
+                                            <td class="align-middle">
+                                                <div class="d-flex px-2 py-1">
+                                                    <div class="d-flex flex-column justify-content-center">
+                                                        <h6 class="mb-0 text-sm <%= item.found ? 'text-dark' : 'text-danger' %>">
+                                                            <%= item.code %>
+                                                        </h6>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="align-middle">
+                                                <% if (item.found) { %>
+                                                    <div class="d-flex flex-column">
+                                                        <span class="text-xs font-weight-bold text-success"><%= item.product.description %></span>
+                                                        <span class="text-xxs text-secondary"><%= item.product.category %></span>
+                                                    </div>
                                                 <% } else { %>
-                                                    <h6 class="mb-0 text-sm text-danger">PRODUCTO DESCONOCIDO</h6>
-                                                    <p class="text-xs text-danger mb-0 font-weight-bold">Cód: <%= item.code %> (No se agregará)</p>
+                                                    <span class="badge badge-sm bg-gradient-danger">No encontrado</span>
                                                 <% } %>
                                             </td>
                                             <td class="align-middle text-center">
-                                                <% if(item.product) { %>
-                                                    <span class="text-secondary text-xs font-weight-bold"><%= item.product.stock %></span>
-                                                <% } else { %>
-                                                    <span class="text-secondary text-xs">--</span>
-                                                <% } %>
+                                                <span class="text-secondary text-xs font-weight-bold"><%= item.found ? item.product.stock : '-' %></span>
                                             </td>
                                             <td class="align-middle text-center">
-                                                <span class="badge bg-gradient-success rounded-pill">+ <%= item.count %></span>
+                                                <span class="badge bg-gradient-info text-xxs">+<%= item.count %></span>
                                             </td>
                                         </tr>
                                     <% }) %>
@@ -94,24 +159,17 @@
                             </table>
                         </div>
                     </div>
-
-                    <div class="card-footer text-center">
-                        <% if (stats.found > 0) { %>
-                            <p class="text-sm text-muted mb-2">
-                                Se sumarán las cantidades detectadas al inventario actual.
-                                <br>
-                                <span class="text-danger text-xs">Los códigos desconocidos serán ignorados.</span>
-                            </p>
-                            
-                            <form action="/inventory/audit-confirm" method="POST" id="formConfirmStock">
-                                <input type="hidden" name="validItems" value='<%= JSON.stringify(scannedItems.filter(i => i.product)) %>'>
-                                
-                                <button type="button" onclick="confirmarIngreso()" class="btn bg-gradient-success w-100 mb-0">
-                                    <i class="fas fa-save me-2"></i> Confirmar y Actualizar Stock
+                    <div class="card-footer text-end border-top-0 pt-0">
+                        <% if (preview.some(i => i.found)) { %>
+                            <hr class="horizontal dark mt-0 mb-4">
+                            <form id="formConfirmStock" action="/inventory/audit-confirm" method="POST">
+                                <input type="hidden" name="jsonData" value='<%= JSON.stringify(preview) %>'>
+                                <button type="button" onclick="confirmarIngreso()" class="btn bg-gradient-success">
+                                    <i class="fas fa-check me-2"></i> Confirmar Ingreso de Stock
                                 </button>
                             </form>
                         <% } else { %>
-                            <div class="alert alert-warning text-white" role="alert">
+                            <div class="alert alert-warning text-white mt-3" role="alert">
                                 <strong>Sin datos válidos.</strong> Revisa los códigos escaneados.
                             </div>
                         <% } %>
@@ -149,6 +207,23 @@
                   document.getElementById('formConfirmStock').submit();
               }
           })
+      }
+
+      // --- CORRECCIÓN AUTOMÁTICA DE ESCÁNER ---
+      const formAudit = document.getElementById('formAudit');
+      const textArea = document.getElementById('rawData');
+
+      if(formAudit && textArea) {
+          formAudit.addEventListener('submit', function(e) {
+              let contenido = textArea.value;
+              textArea.value = contenido.replace(/'/g, '-').replace(/´/g, '-');
+          });
+
+          textArea.addEventListener('input', function(e) {
+             if (this.value.includes("'")) {
+                 this.value = this.value.replace(/'/g, '-');
+             }
+          });
       }
   </script>
 </body>

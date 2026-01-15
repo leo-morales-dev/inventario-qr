@@ -4,7 +4,15 @@
 <head>
   <%- include('partials/head') %>
   <style>
-    /* Ajustes para la tabla de empleados */
+    /* Estilos personalizados */
+    .btn-link {
+        box-shadow: none !important;
+        text-decoration: none;
+    }
+    .btn-link:hover {
+        transform: scale(1.1);
+        transition: transform 0.2s;
+    }
     .avatar-initials {
         width: 36px;
         height: 36px;
@@ -40,7 +48,6 @@
         let withDebt = 0;
         
         employees.forEach(emp => {
-            // Revisamos si tiene algún préstamo con estado 'prestado'
             let hasActiveLoan = emp.Loans && emp.Loans.some(loan => loan.status === 'prestado');
             if(hasActiveLoan) withDebt++;
         });
@@ -49,7 +56,6 @@
       %>
 
       <div class="row mb-4">
-        
         <div class="col-xl-4 col-sm-6 mb-xl-0 mb-4">
           <div class="card">
             <div class="card-body p-3">
@@ -109,68 +115,85 @@
             </div>
           </div>
         </div>
-
       </div>
 
       <div class="row">
         <div class="col-12">
           <div class="card mb-4">
-            
             <div class="card-header pb-0 d-flex justify-content-between align-items-center">
               <h6>Directorio de Personal</h6>
               <button type="button" class="btn bg-gradient-primary btn-sm mb-0" data-bs-toggle="modal" data-bs-target="#modalAddEmployee">
-                <i class="fas fa-plus"></i> Nuevo Empleado
+                <i class="fas fa-plus me-2"></i> Nuevo Empleado
               </button>
             </div>
-
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
                 <table class="table align-items-center mb-0">
                   <thead>
                     <tr>
                       <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Colaborador</th>
+                      <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Puesto</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Estado</th>
-                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Acciones</th>
+                      <th class="text-end text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 pe-4">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <% employees.forEach(emp => { 
-                        // Verificamos deuda por cada fila
-                        let activeLoansCount = emp.Loans ? emp.Loans.filter(l => l.status === 'prestado').length : 0;
+                    <% employees.forEach(employee => { 
+                        let activeLoansCount = employee.Loans ? employee.Loans.filter(l => l.status === 'prestado').length : 0;
                     %>
-                      <tr>
-                        <td>
-                          <div class="d-flex px-3 py-1">
-                            <div>
-                                <div class="avatar-initials me-3">
-                                    <%= emp.name.charAt(0) %>
-                                </div>
-                            </div>
-                            <div class="d-flex flex-column justify-content-center">
-                              <h6 class="mb-0 text-sm"><%= emp.name %></h6>
-                              <p class="text-xs text-secondary mb-0">ID: <%= emp.id %></p>
-                            </div>
-                          </div>
-                        </td>
-                        
-                        <td class="align-middle text-center text-sm">
-                            <% if(activeLoansCount > 0) { %>
-                                <span class="badge badge-sm bg-gradient-danger">Debe <%= activeLoansCount %> items</span>
+                    <tr>
+                      <td>
+                        <div class="d-flex px-2 py-1">
+                          <div>
+                            <% if (employee.photo) { %>
+                                <img src="/uploads/<%= employee.photo %>" class="avatar avatar-sm me-3" alt="user1">
                             <% } else { %>
-                                <span class="badge badge-sm bg-gradient-success">Libre</span>
+                                <div class="avatar avatar-sm me-3 avatar-initials">
+                                    <%= employee.name.charAt(0) %>
+                                </div>
                             <% } %>
-                        </td>
+                          </div>
+                          <div class="d-flex flex-column justify-content-center">
+                            <h6 class="mb-0 text-sm"><%= employee.name %></h6>
+                            <p class="text-xs text-secondary mb-0">ID: <%= employee.id %></p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <p class="text-xs font-weight-bold mb-0"><%= employee.position || '-' %></p>
+                        <p class="text-xs text-secondary mb-0"><%= employee.department || 'General' %></p>
+                      </td>
+                      
+                      <td class="align-middle text-center text-sm">
+                        <% if(activeLoansCount > 0) { %>
+                            <span class="badge badge-sm bg-gradient-danger">Debe <%= activeLoansCount %> items</span>
+                        <% } else { %>
+                            <span class="badge badge-sm bg-gradient-success">Libre</span>
+                        <% } %>
+                      </td>
+                      
+                      <td class="align-middle text-end pe-4">
                         
-                        <td class="align-middle text-center">
-                            <a href="/employees/<%= emp.id %>" class="btn btn-link text-primary px-3 mb-0" data-bs-toggle="tooltip" title="Ver Perfil">
-                                <i class="fas fa-eye text-primary me-2" aria-hidden="true"></i> Perfil
-                            </a>
+                        <button onclick="openQRModal('<%= employee.id %>', '<%= employee.name %>', '<%= employee.id %>')" 
+                                class="btn btn-link text-dark px-2 mb-0" 
+                                title="Ver código QR">
+                            <i class="fas fa-qrcode text-lg"></i>
+                        </button>
 
-                            <a href="javascript:;" onclick="confirmarEliminarEmpleado('<%= emp.id %>', '<%= emp.name %>')" class="btn btn-link text-danger px-3 mb-0" data-bs-toggle="tooltip" title="Eliminar Empleado">
-                                <i class="fas fa-trash text-danger me-2" aria-hidden="true"></i> Borrar
-                            </a>
-                        </td>
-                      </tr>
+                        <a href="/employees/<%= employee.id %>" 
+                           class="btn btn-link text-primary px-2 mb-0" 
+                           title="Ver Perfil">
+                            <i class="fas fa-user-edit text-lg"></i>
+                        </a>
+
+                        <button onclick="confirmarEliminarEmpleado('<%= employee.id %>', '<%= employee.name %>')" 
+                                class="btn btn-link text-danger px-2 mb-0" 
+                                title="Eliminar">
+                            <i class="fas fa-trash text-lg"></i>
+                        </button>
+
+                      </td>
+                    </tr>
                     <% }) %>
                   </tbody>
                 </table>
@@ -208,7 +231,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="name" class="form-control-label">Nombre Completo</label>
-                    <input class="form-control" type="text" name="name" placeholder="Ej: Juan Pérez" required style="text-transform: uppercase;">
+                    <input class="form-control" type="text" name="name" placeholder="Ej: Juan Pérez" required style="text-transform: uppercase;" autofocus>
                 </div>
             </div>
             <div class="modal-footer">
@@ -220,35 +243,121 @@
     </div>
   </div>
 
+  <div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header border-bottom-0 pb-0">
+            <h6 class="modal-title" id="qrModalLabel">Gafete Digital</h6>
+            <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div class="modal-body text-center">
+            <div class="border rounded p-3 mb-3 bg-white shadow-sm d-inline-block">
+                <canvas id="qrCanvas"></canvas>
+            </div>
+            <h5 id="qrName" class="mb-0">Nombre</h5>
+            <p id="qrCodeText" class="text-xs text-muted font-weight-bold">ID: 0</p>
+        </div>
+        <div class="modal-footer justify-content-center border-top-0 pt-0">
+            <button type="button" onclick="downloadPDF()" class="btn bg-gradient-dark w-100">
+                <i class="fas fa-file-pdf me-2"></i> Descargar PDF
+            </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <form id="formEliminarEmpleado" method="POST" style="display: none;"></form>
 
   <%- include('partials/scripts') %>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
-    // Función para confirmar eliminación de empleado
+    let currentQR = null;
+    let currentEmployeeName = "";
+    let currentEmployeeCode = "";
+
+    // 1. ABRIR MODAL
+    function openQRModal(id, name, code) {
+        currentEmployeeName = name;
+        currentEmployeeCode = code; // Aquí llegará solo el número "1"
+
+        document.getElementById('qrName').textContent = name;
+        document.getElementById('qrCodeText').textContent = "ID: " + code; // Texto visual
+
+        // Generar QR (El valor es el código puro, ej: "1")
+        currentQR = new QRious({
+            element: document.getElementById('qrCanvas'),
+            value: code, 
+            size: 150,
+            level: 'H'
+        });
+
+        var myModal = new bootstrap.Modal(document.getElementById('qrModal'));
+        myModal.show();
+    }
+
+    // 2. DESCARGAR PDF
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: [80, 120]
+        });
+
+        doc.setLineWidth(1);
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(5, 5, 70, 110);
+
+        doc.setFontSize(16);
+        doc.setTextColor(45, 206, 137);
+        doc.text("ATN CONTROL", 40, 20, null, null, "center");
+
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(currentEmployeeName, 40, 35, null, null, "center");
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        // En el PDF mostramos también "ID: 1"
+        doc.text("ID: " + currentEmployeeCode, 40, 42, null, null, "center");
+
+        const canvas = document.getElementById('qrCanvas');
+        const imgData = canvas.toDataURL('image/jpeg');
+        doc.addImage(imgData, 'JPEG', 15, 50, 50, 50);
+
+        doc.setFontSize(8);
+        doc.text("Escanea para registrar", 40, 105, null, null, "center");
+        doc.text("préstamos o devoluciones", 40, 109, null, null, "center");
+
+        doc.save(`Gafete_${currentEmployeeName}.pdf`);
+    }
+
+    // 3. CONFIRMAR BORRADO
     function confirmarEliminarEmpleado(id, nombre) {
         Swal.fire({
             title: '¿Eliminar a ' + nombre + '?',
             text: "Se borrará su historial y acceso. ¡No se puede deshacer!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#f5365c', // Rojo
-            cancelButtonColor: '#2dce89',  // Verde
+            confirmButtonColor: '#f5365c',
+            cancelButtonColor: '#2dce89',
             confirmButtonText: 'Sí, borrar empleado',
             cancelButtonText: 'Cancelar',
             reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
-                // Si confirma, enviamos el formulario
                 var form = document.getElementById('formEliminarEmpleado');
                 form.action = '/employees/delete/' + id;
                 form.submit();
             }
-        })
+        });
     }
   </script>
-  
 </body>
 </html>
